@@ -1,0 +1,59 @@
+import React from 'react';
+import './ManagerNoteRequest.css'; // Create this file for custom styling
+
+const ManagerNoteRequest: React.FC = () => {
+  return (
+    <div className="manager-note-request">
+      <div className="header">
+        <h2>Details of Executed Managers Note Request</h2>
+      </div>
+
+      <div className="request-details">
+        <div className="request-row">
+          <span className="label">Reason for Request:</span>
+          <span className="value">Division Notes</span>
+        </div>
+        <div className="request-row">
+          <span className="label">Appearance:</span>
+          <span className="value">Immediate</span>
+        </div>
+        <div className="request-row">
+          <span className="label">Recurrence Type:</span>
+          <span className="value"></span>
+        </div>
+      </div>
+
+      <div className="summary">
+        <h3>Summary</h3>
+        <table className="summary-table">
+          <thead>
+            <tr>
+              <th>Account#</th>
+              <th>Account Name</th>
+              <th>Process Date</th>
+              <th>FA#</th>
+              <th>FA Name</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>78915402</td>
+              <td>WILLIAM R. RANSOM TRUST</td>
+              <td>05/21/2024</td>
+              <td>7396006</td>
+              <td>MORGAN PETERSEN GROUP</td>
+              <td>Executed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="close-btn">
+        <button>Close window</button>
+      </div>
+    </div>
+  );
+};
+
+export default ManagerNoteRequest;
