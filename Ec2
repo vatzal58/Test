@@ -1,0 +1,61 @@
+.manager-note-request {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  border: 1px solid #ccc;
+  width: 700px;
+}
+
+.header {
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+
+.request-details {
+  margin-bottom: 20px;
+}
+
+.request-row {
+  display: flex;
+  margin-bottom: 5px;
+}
+
+.label {
+  width: 150px;
+  font-weight: bold;
+}
+
+.value {
+  flex: 1;
+}
+
+.summary {
+  margin-top: 20px;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.summary-table th,
+.summary-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+.summary-table th {
+  background-color: #f2f2f2;
+}
+
+.close-btn {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.close-btn button {
+  padding: 5px 15px;
+  font-size: 14px;
+  cursor: pointer;
+}
