@@ -1,0 +1,77 @@
+import React, { useState, useRef, useCallback } from 'react';
+import './ToggleButton.css';  // Make sure to import the CSS file
+
+type TogglePosition = 'left' | 'center' | 'right';
+
+interface ToggleButtonProps {
+  leftLabel?: string;
+  centerLabel?: string;
+  rightLabel?: string;
+  defaultPosition?: TogglePosition;
+  onChange?: (position: TogglePosition) => void;
+}
+
+const ToggleButton: React.FC<ToggleButtonProps> = ({
+  leftLabel = 'Left',
+  centerLabel = 'Center',
+  rightLabel = 'Right',
+  defaultPosition = 'left',
+  onChange
+}) => {
+  const [position, setPosition] = useState<TogglePosition>(defaultPosition);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleToggle = useCallback((newPosition: TogglePosition) => {
+    if (newPosition !== position) {
+      setPosition(newPosition);
+      if (onChange) {
+        onChange(newPosition);
+      }
+    }
+  }, [onChange, position]);
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!buttonRef.current) return;
+
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const buttonCenter = buttonRect.left + buttonRect.width / 2;
+    const clickX = e.clientX;
+
+    if (position === 'center') {
+      if (clickX < buttonCenter) {
+        handleToggle('left');
+      } else {
+        handleToggle('right');
+      }
+    } else {
+      handleToggle('center');
+    }
+  };
+
+  return (
+    <div className="toggle-wrapper">
+      <div className="toggle-container">
+        <div className="toggle-button-container">
+          <span className={`toggle-label ${position === 'left' ? 'active' : 'inactive'}`}>
+            {leftLabel}
+          </span>
+          <button 
+            ref={buttonRef}
+            className="toggle-button" 
+            onClick={handleClick}
+          >
+            <span className={`toggle-indicator ${position}`} />
+            <span className={`center-label toggle-label ${position === 'center' ? 'active' : 'inactive'}`}>
+              {centerLabel}
+            </span>
+          </button>
+          <span className={`toggle-label ${position === 'right' ? 'active' : 'inactive'}`}>
+            {rightLabel}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ToggleButton;
