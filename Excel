@@ -1,0 +1,45 @@
+import * as XLSX from 'xlsx-js-style';
+import { writeFile } from 'fs';
+
+// Sample data for rows
+const data = [
+  ['Row 1', 'Data 1', 'More Data 1'],
+  ['Row 2', 'Data 2', 'More Data 2'],
+  // Add more rows as needed
+];
+
+// Headers array
+const headers = ['Header 1', 'Header 2', 'Header 3'];
+
+// Function to generate Excel file
+const generateExcelFile = () => {
+  const workbook = XLSX.utils.book_new();
+
+  // Create styled header row
+  const styledHeaders = headers.map(header => ({
+    v: header,
+    s: {
+      font: { color: { rgb: 'FFFFFF' } }, // White font color
+      fill: { fgColor: { rgb: '0000FF' } } // Blue background color
+    }
+  }));
+
+  // Create worksheet data
+  const worksheetData = [
+    [{ v: 'First Line in Red', s: { font: { color: { rgb: 'FF0000' } } } }], // First line in red
+    [], // Second line empty
+    styledHeaders, // Headers with styles
+    ...data // Rows data
+  ];
+
+  // Convert to sheet
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+
+  // Write the file
+  const filePath = './output.xlsx';
+  XLSX.writeFile(workbook, filePath);
+  console.log(`Excel file generated at ${filePath}`);
+};
+
+generateExcelFile();
