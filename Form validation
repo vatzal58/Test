@@ -1,0 +1,75 @@
+import React, { useState } from 'react';
+import { TextField, Button } from '@mui/material';
+
+const MyForm = () => {
+  const [formValues, setFormValues] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+
+  const validate = () => {
+    let tempErrors = { ...errors };
+    tempErrors.name = formValues.name ? '' : 'Name is required';
+    tempErrors.email = formValues.email ? '' : 'Email is required';
+    tempErrors.phone = formValues.phone ? '' : 'Phone number is required';
+
+    setErrors(tempErrors);
+    return Object.values(tempErrors).every((x) => x === '');
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormValues({ ...formValues, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validate()) {
+      // Submit the form if validation passes
+      console.log('Form submitted:', formValues);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <TextField
+        label="Name"
+        name="name"
+        value={formValues.name}
+        onChange={handleChange}
+        error={!!errors.name}
+        helperText={errors.name}
+        required
+      />
+      <TextField
+        label="Email"
+        name="email"
+        value={formValues.email}
+        onChange={handleChange}
+        error={!!errors.email}
+        helperText={errors.email}
+        required
+      />
+      <TextField
+        label="Phone"
+        name="phone"
+        value={formValues.phone}
+        onChange={handleChange}
+        error={!!errors.phone}
+        helperText={errors.phone}
+        required
+      />
+      <Button type="submit" variant="contained" color="primary">
+        Submit
+      </Button>
+    </form>
+  );
+};
+
+export default MyForm;
