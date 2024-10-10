@@ -1,0 +1,21 @@
+import React, { useState } from 'react';
+import { TextField } from '@mui/material';
+
+const NoSpecialCharsTextField: React.FC = () => {
+  const [value, setValue] = useState<string>('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value.replace(/[^a-zA-Z0-9]/g, ''); // Only allows letters and numbers
+    setValue(newValue);
+  };
+
+  return (
+    <TextField
+      label="Input"
+      value={value}
+      onChange={handleChange}
+    />
+  );
+};
+
+export default NoSpecialCharsTextField;
