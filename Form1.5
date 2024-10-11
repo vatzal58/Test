@@ -1,0 +1,146 @@
+import React, { useState } from 'react';
+import { TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Button } from '@mui/material';
+
+const MyForm = () => {
+  const initialFormValues = {
+    name: '',
+    email: '',
+    phone: '',
+    country: '',
+  };
+
+  const initialErrorValues = {
+    name: '',
+    email: '',
+    phone: '',
+    country: '',
+    formLevel: [], // Form-level errors as part of the `errors` state
+  };
+
+  const [formValues, setFormValues] = useState(initialFormValues);
+  const [errors, setErrors] = useState(initialErrorValues);
+
+  const validate = () => {
+    let tempErrors = { ...errors };
+    let tempFormLevelErrors: string[] = []; // Initialize an empty array for form-level errors
+
+    // Individual field validations
+    tempErrors.name = formValues.name ? '' : 'Name is required';
+    tempErrors.email = formValues.email ? '' : 'Email is required';
+    tempErrors.phone = formValues.phone ? '' : 'Phone number is required';
+    tempErrors.country = formValues.country ? '' : 'Country is required';
+
+    // Form-level validation 1: Phone number length for the US
+    if (formValues.country === 'US' && formValues.phone && formValues.phone.length !== 10) {
+      tempFormLevelErrors.push('Phone number must be 10 digits for the United States');
+    }
+
+    // Form-level validation 2: Email must contain 'example' if country is 'India'
+    if (formValues.country === 'IN' && formValues.email && !formValues.email.includes('example')) {
+      tempFormLevelErrors.push('Email must contain "example" for users from India');
+    }
+
+    // Form-level validation 3: Name and Phone should not be identical
+    if (formValues.name && formValues.phone && formValues.name === formValues.phone) {
+      tempFormLevelErrors.push('Name and phone number should not be identical');
+    }
+
+    tempErrors.formLevel = tempFormLevelErrors; // Add form-level errors to the `errors` object
+    setErrors(tempErrors);
+
+    // Return false if there are any field or form-level errors
+    return Object.values(tempErrors).every((x) => x === '' || (Array.isArray(x) && x.length === 0));
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value } = e.target;
+    setFormValues({
+      ...formValues,
+      [name as string]: value as string,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validate()) {
+      // Submit the form if validation passes
+      console.log('Form submitted:', formValues);
+    }
+  };
+
+  const handleReset = () => {
+    setFormValues(initialFormValues);
+    setErrors(initialErrorValues); // Clear both field and form-level errors
+  };
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <TextField
+        label="Name"
+        name="name"
+        value={formValues.name}
+        onChange={handleChange}
+        error={!!errors.name}
+        helperText={errors.name}
+        required
+      />
+      <TextField
+        label="Email"
+        name="email"
+        value={formValues.email}
+        onChange={handleChange}
+        error={!!errors.email}
+        helperText={errors.email}
+        required
+      />
+      <TextField
+        label="Phone"
+        name="phone"
+        value={formValues.phone}
+        onChange={handleChange}
+        error={!!errors.phone}
+        helperText={errors.phone}
+        required
+      />
+      
+      {/* MUI Select Component */}
+      <FormControl error={!!errors.country} required fullWidth>
+        <InputLabel>Country</InputLabel>
+        <Select
+          name="country"
+          value={formValues.country}
+          onChange={handleChange}
+          displayEmpty
+        >
+          <MenuItem value="">
+            <em>Select a country</em>
+          </MenuItem>
+          <MenuItem value="US">United States</MenuItem>
+          <MenuItem value="IN">India</MenuItem>
+          <MenuItem value="UK">United Kingdom</MenuItem>
+        </Select>
+        <FormHelperText>{errors.country}</FormHelperText>
+      </FormControl>
+
+      {/* Display multiple form-level validation errors */}
+      {errors.formLevel.length > 0 && (
+        <div style={{ color: 'red', marginTop: '10px' }}>
+          {errors.formLevel.map((error, index) => (
+            <div key={index}>{error}</div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: '20px' }}>
+        <Button type="submit" variant="contained" color="primary" style={{ marginRight: '10px' }}>
+          Submit
+        </Button>
+        <Button type="button" variant="outlined" color="secondary" onClick={handleReset}>
+          Reset
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default MyForm;
