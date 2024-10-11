@@ -1,0 +1,72 @@
+import React, { useState } from 'react';
+import { TextField, Select, MenuItem, FormControl, InputLabel, FormHelperText, Button } from '@mui/material';
+
+const MyForm = () => {
+  const initialFormValues = {
+    name: '',
+    email: '',
+    phone: '',
+    country: '',
+  };
+
+  const initialErrorValues = {
+    name: '',
+    email: '',
+    phone: '',
+    country: '',
+    formLevel: [], // Form-level errors as part of the `errors` state
+  };
+
+  const [formValues, setFormValues] = useState(initialFormValues);
+  const [errors, setErrors] = useState(initialErrorValues);
+
+  const validate = () => {
+    let tempErrors = { ...errors };
+    let tempFormLevelErrors: string[] = []; // Initialize an empty array for form-level errors
+
+    // Individual field validations
+    tempErrors.name = formValues.name ? '' : 'Name is required';
+    tempErrors.email = formValues.email ? '' : 'Email is required';
+    tempErrors.phone = formValues.phone ? '' : 'Phone number is required';
+    tempErrors.country = formValues.country ? '' : 'Country is required';
+
+    // Form-level validation 1: Phone number length for the US
+    if (formValues.country === 'US' && formValues.phone && formValues.phone.length !== 10) {
+      tempFormLevelErrors.push('Phone number must be 10 digits for the United States');
+    }
+
+    // Form-level validation 2: Email must contain 'example' if country is 'India'
+    if (formValues.country === 'IN' && formValues.email && !formValues.email.includes('example')) {
+      tempFormLevelErrors.push('Email must contain "example" for users from India');
+    }
+
+    // Form-level validation 3: Name and Phone should not be identical
+    if (formValues.name && formValues.phone && formValues.name === formValues.phone) {
+      tempFormLevelErrors.push('Name and phone number should not be identical');
+    }
+
+    tempErrors.formLevel = tempFormLevelErrors; // Add form-level errors to the `errors` object
+    setErrors(tempErrors);
+
+    // Return false if there are any field or form-level errors
+    return Object.values(tempErrors).every((x) => x === '' || (Array.isArray(x) && x.length === 0));
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value } = e.target;
+    setFormValues({
+      ...formValues,
+      [name as string]: value as string,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validate()) {
+      // Submit the form if validation passes
+      console.log('Form submitted:', formValues);
+    }
+  };
+
+  const handleReset = () => {
+    setFormValues(initial
