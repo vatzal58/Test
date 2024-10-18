@@ -1,0 +1,17 @@
+const concatenateWithComma = (str1: string, str2: string): string => {
+  if (str1 && str2) {
+    return `${str1}, ${str2}`;
+  }
+  return str1 || str2;  // Return whichever is non-empty, or an empty string if both are empty
+};
+
+// Example usage
+const result1 = concatenateWithComma("Hello", "World"); // "Hello, World"
+const result2 = concatenateWithComma("Hello", "");      // "Hello"
+const result3 = concatenateWithComma("", "World");      // "World"
+const result4 = concatenateWithComma("", "");           // ""
+
+console.log(result1); // Output: "Hello, World"
+console.log(result2); // Output: "Hello"
+console.log(result3); // Output: "World"
+console.log(result4); // Output: ""
