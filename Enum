@@ -1,0 +1,13 @@
+enum Colors {
+  Red = 'RED',
+  Green = 'GREEN',
+  Blue = 'BLUE'
+}
+
+const getKeyFromStringEnumValue = (value: string): string | undefined => {
+  const entries = Object.entries(Colors);
+  const found = entries.find(([, enumValue]) => enumValue === value);
+  return found ? found[0] : undefined;
+};
+
+console.log(getKeyFromStringEnumValue('RED'));  // Output: "Red"
