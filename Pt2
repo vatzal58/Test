@@ -1,0 +1,240 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Button,
+  Popover,
+  Divider
+} from '@mui/material';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our hierarchical data
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+const hierarchicalData: TreeItem[] = [
+  {
+    id: 'fruits',
+    label: 'Fruits',
+    children: [
+      { id: 'apple', label: 'Apple' },
+      { id: 'banana', label: 'Banana' },
+      { id: 'cherry', label: 'Cherry' }
+    ]
+  },
+  {
+    id: 'vegetables',
+    label: 'Vegetables',
+    children: [
+      { id: 'carrot', label: 'Carrot' },
+      { id: 'broccoli', label: 'Broccoli' },
+      { id: 'spinach', label: 'Spinach' }
+    ]
+  }
+];
+
+const HierarchicalCheckboxDropdown: React.FC = () => {
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // Flatten all item IDs for select/deselect all
+  const allItemIds = useMemo(() => {
+    const flattenItems = (data: TreeItem[]): string[] => {
+      return data.flatMap(item => 
+        item.children 
+          ? [item.id, ...item.children.map(child => child.id)]
+          : [item.id]
+      );
+    };
+    return flattenItems(hierarchicalData);
+  }, []);
+
+  // Toggle dropdown open
+  const handleOpenDropdown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  // Close dropdown
+  const handleCloseDropdown = () => {
+    setAnchorEl(null);
+  };
+
+  // Toggle category expansion
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories(prev => 
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  // Toggle individual item selection
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  // Toggle parent category and all its children
+  const toggleParentCategory = (parent: TreeItem) => {
+    const parentChildrenIds = parent.children?.map(child => child.id) || [];
+    
+    // Check if all children are currently selected
+    const allChildrenSelected = parentChildrenIds.every(id => 
+      selectedItems.includes(id)
+    );
+
+    setSelectedItems(prev => {
+      if (allChildrenSelected) {
+        // Remove all children of this parent
+        return prev.filter(id => !parentChildrenIds.includes(id));
+      } else {
+        // Add all children of this parent
+        const updatedSelection = new Set([...prev, ...parentChildrenIds]);
+        return Array.from(updatedSelection);
+      }
+    });
+  };
+
+  // Select all items
+  const selectAllItems = () => {
+    setSelectedItems(allItemIds);
+  };
+
+  // Deselect all items
+  const deselectAllItems = () => {
+    setSelectedItems([]);
+  };
+
+  // Render selected items as a string
+  const renderSelectedItems = () => {
+    if (selectedItems.length === 0) return 'Select Items';
+    
+    return selectedItems.join(', ');
+  };
+
+  // Check if all items are selected
+  const areAllItemsSelected = useMemo(() => 
+    allItemIds.length > 0 && allItemIds.every(id => selectedItems.includes(id)),
+    [allItemIds, selectedItems]
+  );
+
+  return (
+    <div>
+      {/* Dropdown Trigger Button */}
+      <Button 
+        variant="outlined" 
+        onClick={handleOpenDropdown}
+        sx={{ width: '250px', textTransform: 'none' }}
+      >
+        {renderSelectedItems()}
+      </Button>
+
+      <Popover
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={handleCloseDropdown}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <List sx={{ width: '250px', maxHeight: '300px', overflow: 'auto' }}>
+          {/* Select All / Deselect All Options */}
+          <ListItem>
+            <ListItemIcon>
+              <Checkbox
+                edge="start"
+                checked={areAllItemsSelected}
+                indeterminate={
+                  selectedItems.length > 0 && 
+                  selectedItems.length < allItemIds.length
+                }
+                onChange={areAllItemsSelected ? deselectAllItems : selectAllItems}
+              />
+            </ListItemIcon>
+            <ListItemText 
+              primary={areAllItemsSelected ? 'Deselect All' : 'Select All'} 
+            />
+          </ListItem>
+          
+          <Divider />
+
+          {hierarchicalData.map(parent => (
+            <React.Fragment key={parent.id}>
+              {/* Parent Category Item */}
+              <ListItem>
+                <ListItemIcon>
+                  <Checkbox
+                    edge="start"
+                    checked={
+                      parent.children?.every(child => 
+                        selectedItems.includes(child.id)
+                      )
+                    }
+                    indeterminate={
+                      parent.children?.some(child => 
+                        selectedItems.includes(child.id)
+                      ) && 
+                      !parent.children?.every(child => 
+                        selectedItems.includes(child.id)
+                      )
+                    }
+                    onChange={() => toggleParentCategory(parent)}
+                  />
+                </ListItemIcon>
+                <ListItemText primary={parent.label} />
+                {parent.children && (
+                  <div onClick={() => toggleCategory(parent.id)}>
+                    {openCategories.includes(parent.id) ? <ExpandLess /> : <ExpandMore />}
+                  </div>
+                )}
+              </ListItem>
+
+              {/* Child Items Collapse */}
+              {parent.children && (
+                <Collapse 
+                  in={openCategories.includes(parent.id)} 
+                  timeout="auto" 
+                  unmountOnExit
+                >
+                  <List component="div" disablePadding>
+                    {parent.children.map(child => (
+                      <ListItem key={child.id} sx={{ pl: 4 }}>
+                        <ListItemIcon>
+                          <Checkbox
+                            edge="start"
+                            checked={selectedItems.includes(child.id)}
+                            onChange={() => toggleItemSelection(child.id)}
+                          />
+                        </ListItemIcon>
+                        <ListItemText primary={child.label} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </React.Fragment>
+          ))}
+        </List>
+      </Popover>
+    </div>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
