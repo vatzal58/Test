@@ -1,0 +1,281 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Popover,
+  Divider,
+  TextField,
+  Button
+} from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import SearchIcon from '@mui/icons-material/Search';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our hierarchical data
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+const hierarchicalData: TreeItem[] = [
+  {
+    id: 'fruits',
+    label: 'Fruits',
+    children: [
+      { id: 'apple', label: 'Apple' },
+      { id: 'banana', label: 'Banana' },
+      { id: 'cherry', label: 'Cherry' },
+      { id: 'date', label: 'Date' },
+      { id: 'elderberry', label: 'Elderberry' }
+    ]
+  },
+  {
+    id: 'vegetables',
+    label: 'Vegetables',
+    children: [
+      { id: 'carrot', label: 'Carrot' },
+      { id: 'broccoli', label: 'Broccoli' },
+      { id: 'spinach', label: 'Spinach' },
+      { id: 'tomato', label: 'Tomato' },
+      { id: 'cucumber', label: 'Cucumber' }
+    ]
+  }
+];
+
+// Custom theme
+const theme = createTheme({
+  typography: {
+    fontFamily: 'Roboto, Arial, sans-serif',
+  },
+  components: {
+    MuiCheckbox: {
+      styleOverrides: {
+        root: {
+          color: '#757575', // Default color
+          '&.Mui-checked': {
+            color: '#1976d2', // Custom checked color
+          },
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            '& fieldset': {
+              borderColor: '#bdbdbd',
+            },
+            '&:hover fieldset': {
+              borderColor: '#1976d2',
+            },
+          },
+          '& .MuiInputBase-input': {
+            fontFamily: 'Roboto, Arial, sans-serif',
+            fontSize: '14px',
+          },
+          '& .MuiInputBase-input::placeholder': {
+            color: '#757575',
+            opacity: 1,
+            backgroundColor: 'white', // Keep white background on placeholder
+          },
+        },
+      },
+    },
+  },
+});
+
+const HierarchicalCheckboxDropdown: React.FC = () => {
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // Flatten all items with their full path for searching
+  const flattenedItems = useMemo(() => {
+    const flatten = (data: TreeItem[], parentLabel = ''): Array<{
+      id: string;
+      label: string;
+      fullPath: string;
+      parentId?: string;
+    }> => {
+      return data.flatMap(item => {
+        const currentPath = parentLabel 
+          ? `${parentLabel} > ${item.label}`
+          : item.label;
+        
+        if (item.children) {
+          return [
+            { 
+              id: item.id, 
+              label: item.label, 
+              fullPath: currentPath 
+            },
+            ...flatten(item.children, currentPath).map(child => ({
+              ...child,
+              parentId: item.id
+            }))
+          ];
+        }
+        return { 
+          id: item.id, 
+          label: item.label, 
+          fullPath: currentPath 
+        };
+      });
+    };
+    return flatten(hierarchicalData);
+  }, []);
+
+  // Filtered items based on search
+  const filteredItems = useMemo(() => {
+    if (!searchTerm) return hierarchicalData;
+    
+    const normalizedSearch = searchTerm.toLowerCase();
+    
+    // Deep search function
+    const filterData = (items: TreeItem[]): TreeItem[] => {
+      return items.reduce<TreeItem[]>((acc, item) => {
+        if (
+          item.label.toLowerCase().includes(normalizedSearch) || 
+          (item.children && item.children.some(child => 
+            child.label.toLowerCase().includes(normalizedSearch)
+          ))
+        ) {
+          const filteredItem: TreeItem = { ...item };
+          if (filteredItem.children) {
+            filteredItem.children = filteredItem.children.filter(child => 
+              child.label.toLowerCase().includes(normalizedSearch)
+            );
+          }
+          acc.push(filteredItem);
+        }
+        return acc;
+      }, []);
+    };
+
+    return filterData(hierarchicalData);
+  }, [hierarchicalData, searchTerm]);
+
+  // Flatten all item IDs for select/deselect all
+  const allItemIds = useMemo(() => 
+    flattenedItems.map(item => item.id), 
+    [flattenedItems]
+  );
+
+  // Toggle dropdown open
+  const handleOpenDropdown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  // Close dropdown
+  const handleCloseDropdown = () => {
+    setAnchorEl(null);
+    setSearchTerm('');
+  };
+
+  // Toggle category expansion
+  const toggleCategory = (categoryId: string) => {
+    setOpenCategories(prev => 
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  // Toggle parent category and all its children
+  const toggleParentCategory = (parent: TreeItem) => {
+    const parentChildrenIds = parent.children?.map(child => child.id) || [];
+    
+    // Check if all children are currently selected
+    const allChildrenSelected = parentChildrenIds.every(id => 
+      selectedItems.includes(id)
+    );
+
+    setSelectedItems(prev => {
+      if (allChildrenSelected) {
+        // Remove all children of this parent
+        return prev.filter(id => !parentChildrenIds.includes(id));
+      } else {
+        // Add all children of this parent
+        const updatedSelection = new Set([...prev, ...parentChildrenIds]);
+        return Array.from(updatedSelection);
+      }
+    });
+  };
+
+  // Toggle individual item selection
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  // Select all items
+  const selectAllItems = () => {
+    setSelectedItems(allItemIds);
+  };
+
+  // Deselect all items
+  const deselectAllItems = () => {
+    setSelectedItems([]);
+  };
+
+  // Render selected items summary
+  const renderSelectedItemsSummary = () => {
+    const selectedCount = selectedItems.length;
+    return selectedCount === 0 ? 'Select Items' : `${selectedCount} Selected`;
+  };
+
+  // Check if all items are selected
+  const areAllItemsSelected = useMemo(() => 
+    allItemIds.length > 0 && allItemIds.every(id => selectedItems.includes(id)),
+    [allItemIds, selectedItems]
+  );
+
+  return (
+    <ThemeProvider theme={theme}>
+      <div>
+        {/* Dropdown Trigger Button */}
+        <Button 
+          variant="outlined" 
+          onClick={handleOpenDropdown}
+          sx={{ 
+            width: '250px', 
+            textTransform: 'none',
+            fontFamily: 'Roboto, Arial, sans-serif',
+            fontSize: '14px'
+          }}
+        >
+          {renderSelectedItemsSummary()}
+        </Button>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleCloseDropdown}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+        >
+          {/* Rest of the previous dropdown code remains the same */}
+          {/* ... */}
+        </Popover>
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
