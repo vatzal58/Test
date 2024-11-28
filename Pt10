@@ -1,0 +1,237 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  Collapse, 
+  TextField, 
+  Button, 
+  Box, 
+  Typography 
+} from '@mui/material';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our data structure
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+interface HierarchicalDropdownProps {
+  data: TreeItem[];
+}
+
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ data }) => {
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Toggle item expansion
+  const handleToggle = (id: string) => {
+    setOpenItems(prev => 
+      prev.includes(id) 
+        ? prev.filter(itemId => itemId !== id)
+        : [...prev, id]
+    );
+  };
+
+  // Check if an item is selected
+  const isSelected = (item: TreeItem): boolean => {
+    return selectedItems.includes(item.id);
+  };
+
+  // Check if all children of a parent are selected
+  const areAllChildrenSelected = (item: TreeItem): boolean => {
+    if (!item.children) return false;
+    return item.children.every(child => selectedItems.includes(child.id));
+  };
+
+  // Handle parent checkbox click
+  const handleParentCheckboxClick = (item: TreeItem) => {
+    const isCurrentlySelected = isSelected(item);
+    
+    // If item has children, select/deselect all children
+    if (item.children) {
+      const childIds = item.children.map(child => child.id);
+      
+      if (isCurrentlySelected) {
+        // Deselect all children
+        setSelectedItems(prev => prev.filter(id => !childIds.includes(id)));
+      } else {
+        // Select all children that aren't already selected
+        setSelectedItems(prev => [
+          ...new Set([
+            ...prev, 
+            ...childIds.filter(id => !prev.includes(id))
+          ])
+        ]);
+      }
+    }
+  };
+
+  // Handle child checkbox click
+  const handleChildCheckboxClick = (item: TreeItem) => {
+    setSelectedItems(prev => 
+      prev.includes(item.id)
+        ? prev.filter(id => id !== item.id)
+        : [...prev, item.id]
+    );
+  };
+
+  // Select all items
+  const selectAll = () => {
+    const allIds = flattenTree(data).map(item => item.id);
+    setSelectedItems(allIds);
+  };
+
+  // Deselect all items
+  const deselectAll = () => {
+    setSelectedItems([]);
+  };
+
+  // Filter items based on search term
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return data;
+
+    const filterItems = (items: TreeItem[]): TreeItem[] => {
+      return items
+        .filter(item => 
+          item.label.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .map(item => ({
+          ...item,
+          children: item.children ? filterItems(item.children) : undefined
+        }))
+        .filter(item => item.children?.length || 
+          item.label.toLowerCase().includes(searchTerm.toLowerCase()));
+    };
+
+    return filterItems(data);
+  }, [data, searchTerm]);
+
+  // Render recursive tree
+  const renderTree = (items: TreeItem[]) => {
+    return items.map((item) => (
+      <React.Fragment key={item.id}>
+        <ListItem>
+          {/* Parent Checkbox */}
+          <Checkbox
+            checked={isSelected(item)}
+            indeterminate={
+              item.children && 
+              item.children.some(child => selectedItems.includes(child.id)) && 
+              !areAllChildrenSelected(item)
+            }
+            onChange={() => handleParentCheckboxClick(item)}
+          />
+          <ListItemText primary={item.label} />
+          
+          {/* Expand/Collapse for items with children */}
+          {item.children && item.children.length > 0 && (
+            <Button onClick={() => handleToggle(item.id)}>
+              {openItems.includes(item.id) ? <ExpandLess /> : <ExpandMore />}
+            </Button>
+          )}
+        </ListItem>
+
+        {/* Render Children */}
+        {item.children && item.children.length > 0 && (
+          <Collapse in={openItems.includes(item.id)} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {item.children.map((child) => (
+                <ListItem key={child.id} sx={{ pl: 4 }}>
+                  {/* Child Checkbox */}
+                  <Checkbox
+                    checked={selectedItems.includes(child.id)}
+                    onChange={() => handleChildCheckboxClick(child)}
+                  />
+                  <ListItemText primary={child.label} />
+                </ListItem>
+              ))}
+            </List>
+          </Collapse>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  // Utility to flatten tree for select all functionality
+  const flattenTree = (tree: TreeItem[]): TreeItem[] => {
+    return tree.reduce<TreeItem[]>((acc, item) => {
+      acc.push(item);
+      if (item.children) {
+        acc.push(...flattenTree(item.children));
+      }
+      return acc;
+    }, []);
+  };
+
+  return (
+    <Box sx={{ width: 300, border: '1px solid #ddd', borderRadius: 2, p: 2 }}>
+      {/* Search Input */}
+      <TextField
+        fullWidth
+        variant="outlined"
+        label="Search"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        sx={{ mb: 2 }}
+      />
+
+      {/* Select/Deselect All Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Button variant="contained" onClick={selectAll}>
+          Select All
+        </Button>
+        <Button variant="contained" color="secondary" onClick={deselectAll}>
+          Deselect All
+        </Button>
+      </Box>
+
+      {/* Selected Items Display */}
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+        Selected Items: {selectedItems.length}
+      </Typography>
+
+      {/* Tree View */}
+      <List>
+        {renderTree(filteredData)}
+      </List>
+    </Box>
+  );
+};
+
+// Example Usage Component
+const App: React.FC = () => {
+  const sampleData: TreeItem[] = [
+    {
+      id: 'fruits',
+      label: 'Fruits',
+      children: [
+        { id: 'apple', label: 'Apple' },
+        { id: 'banana', label: 'Banana' },
+        { id: 'cherry', label: 'Cherry' }
+      ]
+    },
+    {
+      id: 'vegetables',
+      label: 'Vegetables',
+      children: [
+        { id: 'carrot', label: 'Carrot' },
+        { id: 'broccoli', label: 'Broccoli' },
+        { id: 'spinach', label: 'Spinach' }
+      ]
+    }
+  ];
+
+  return (
+    <div>
+      <HierarchicalDropdown data={sampleData} />
+    </div>
+  );
+};
+
+export default App;
