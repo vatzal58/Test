@@ -1,0 +1,4 @@
+const extractBracketContent = (input: string): string => {
+  const match = input.match(/\(([^)]+)\)/);
+  return match ? match[1] : input;
+};
