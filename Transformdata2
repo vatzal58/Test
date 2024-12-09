@@ -1,0 +1,60 @@
+interface ChildItem {
+  id: string;
+  label: string;
+}
+
+interface ParentItem {
+  id: string;
+  label: string;
+  children?: ChildItem[];
+}
+
+const data = [
+  { typedesc: 'carrot', parenttypedesc: 'Vegetables' },
+  { typedesc: 'broccoli', parenttypedesc: 'Vegetables' },
+  { typedesc: 'spinach', parenttypedesc: 'Vegetables' },
+  { typedesc: 'tomato', parenttypedesc: 'Vegetables' },
+  { typedesc: 'cucumber', parenttypedesc: 'Vegetables' },
+];
+
+const singleItemData = [
+  { typedesc: 'apple', parenttypedesc: 'Fruits' },
+];
+
+const transformData = (dataArray: { typedesc: string; parenttypedesc: string }[]): ParentItem[] => {
+  const result: ParentItem[] = [];
+
+  // Get unique parenttypedesc values
+  const uniqueParentTypes = [...new Set(dataArray.map((item) => item.parenttypedesc))];
+
+  for (const parentType of uniqueParentTypes) {
+    const children: ChildItem[] = dataArray
+      .filter((item) => item.parenttypedesc === parentType)
+      .map((item) => ({
+        id: item.typedesc,
+        label: item.typedesc,
+      }));
+
+    // If there's only one child, don't create a children array
+    if (children.length === 1) {
+      result.push({
+        id: children[0].id,
+        label: children[0].label,
+      });
+    } else if (children.length > 0) {
+      result.push({
+        id: parentType,
+        label: parentType,
+        children,
+      });
+    }
+  }
+
+  return result;
+};
+
+const transformedData = transformData(data);
+console.log(transformedData);
+
+const transformedSingleItemData = transformData(singleItemData);
+console.log(transformedSingleItemData);
