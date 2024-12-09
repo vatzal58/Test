@@ -1,0 +1,191 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Popover,
+  Divider,
+  TextField,
+  Button,
+  createTheme,
+  ThemeProvider,
+  Typography
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our hierarchical data with optional children
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+// Define props interface
+interface HierarchicalCheckboxDropdownProps {
+  hierarchicalData: TreeItem[];
+  selectedItems: string[];
+  setSelectedItems: React.Dispatch<React.SetStateAction<string[]>>;
+  placeholder?: string;
+  checkboxColor?: string;
+  fontSize?: number;
+}
+
+const HierarchicalCheckboxDropdown: React.FC<HierarchicalCheckboxDropdownProps> = ({
+  hierarchicalData,
+  selectedItems,
+  setSelectedItems,
+  placeholder = 'Select Items',
+  checkboxColor = '#1976d2', // Default to Material-UI blue
+  fontSize = 14 // Default font size
+}) => {
+  const theme = createTheme({
+    typography: {
+      fontFamily: 'Roboto, Arial, sans-serif',
+      body1: {
+        fontSize: `${fontSize}px`,
+      },
+      body2: {
+        fontSize: `${fontSize}px`,
+      },
+    },
+    components: {
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            color: checkboxColor,
+            '&.Mui-checked': {
+              color: checkboxColor,
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            fontSize: `${fontSize}px`,
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiInputBase-input': {
+              fontSize: `${fontSize}px`,
+            },
+            '& .MuiInputLabel-root': {
+              fontSize: `${fontSize}px`,
+            },
+            '& .MuiOutlinedInput-notchedOutline legend': {
+              fontSize: `${fontSize}px`,
+            },
+          },
+        },
+      },
+      MuiListItemText: {
+        styleOverrides: {
+          primary: {
+            fontSize: `${fontSize}px`,
+          },
+        },
+      },
+    },
+  });
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // ... [Previous implementation of other methods remains the same]
+
+  // Render selected items summary with consistent font size
+  const renderSelectedItemsSummary = () => {
+    const selectedCount = selectedItems.length;
+    return (
+      <Typography variant="body1" sx={{ fontSize: `${fontSize}px` }}>
+        {selectedCount === 0 ? placeholder : `${selectedCount} Selected`}
+      </Typography>
+    );
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <div>
+        {/* Dropdown Trigger Button */}
+        <Button 
+          variant="outlined" 
+          onClick={handleOpenDropdown}
+          sx={{ 
+            width: '250px', 
+            textTransform: 'none',
+          }}
+        >
+          {renderSelectedItemsSummary()}
+        </Button>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleCloseDropdown}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+        >
+          <List sx={{ width: '300px', maxHeight: '400px' }}>
+            {/* Search Input */}
+            <ListItem>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1 }} />,
+                }}
+                size="small"
+              />
+            </ListItem>
+
+            {/* Select All / Deselect All Options */}
+            <ListItem>
+              <ListItemIcon>
+                <Checkbox
+                  edge="start"
+                  checked={areAllItemsSelected}
+                  indeterminate={
+                    selectedItems.length > 0 && 
+                    selectedItems.length < allItemIds.length
+                  }
+                  onChange={areAllItemsSelected ? deselectAllItems : selectAllItems}
+                />
+              </ListItemIcon>
+              <ListItemText 
+                primary={
+                  <Typography variant="body1" sx={{ fontSize: `${fontSize}px` }}>
+                    {areAllItemsSelected ? 'Deselect All' : 'Select All'}
+                  </Typography>
+                } 
+              />
+            </ListItem>
+            
+            <Divider />
+
+            {/* Rest of the implementation remains the same */}
+          </List>
+        </Popover>
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
