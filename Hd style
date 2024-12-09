@@ -1,0 +1,109 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Popover,
+  Divider,
+  TextField,
+  Button,
+  createTheme,
+  ThemeProvider
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our hierarchical data with optional children
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+// Define props interface
+interface HierarchicalCheckboxDropdownProps {
+  hierarchicalData: TreeItem[];
+  selectedItems: string[];
+  setSelectedItems: React.Dispatch<React.SetStateAction<string[]>>;
+  placeholder?: string;
+  checkboxColor?: string;
+  fontSize?: number;
+}
+
+const HierarchicalCheckboxDropdown: React.FC<HierarchicalCheckboxDropdownProps> = ({
+  hierarchicalData,
+  selectedItems,
+  setSelectedItems,
+  placeholder = 'Select Items',
+  checkboxColor = '#1976d2', // Default to Material-UI blue
+  fontSize = 14 // Default font size
+}) => {
+  const theme = createTheme({
+    components: {
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            color: checkboxColor,
+            '&.Mui-checked': {
+              color: checkboxColor,
+            },
+          },
+        },
+      },
+      MuiListItemText: {
+        styleOverrides: {
+          primary: {
+            fontSize: `${fontSize}px`,
+          },
+        },
+      },
+    },
+  });
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // ... [Rest of the previous implementation remains the same]
+
+  return (
+    <ThemeProvider theme={theme}>
+      <div>
+        {/* Dropdown Trigger Button */}
+        <Button 
+          variant="outlined" 
+          onClick={handleOpenDropdown}
+          sx={{ 
+            width: '250px', 
+            textTransform: 'none',
+            fontSize: `${fontSize}px`
+          }}
+        >
+          {renderSelectedItemsSummary()}
+        </Button>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleCloseDropdown}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+        >
+          {/* ... [Rest of the Popover content remains the same] */}
+        </Popover>
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
