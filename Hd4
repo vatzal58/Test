@@ -1,0 +1,142 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Popover,
+  Divider,
+  TextField,
+  Button,
+  createTheme,
+  ThemeProvider,
+  Typography
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+
+// Define the type for our hierarchical data with optional children
+interface TreeItem {
+  id: string;
+  label: string;
+  children?: TreeItem[];
+}
+
+// Define props interface
+interface HierarchicalCheckboxDropdownProps {
+  hierarchicalData: TreeItem[];
+  selectedItems: string[];
+  setSelectedItems: React.Dispatch<React.SetStateAction<string[]>>;
+  placeholder?: string;
+  checkboxColor?: string;
+  fontSize?: number;
+  checkboxSize?: number;
+  buttonFontColor?: string;
+  buttonBorderColor?: string;
+}
+
+const HierarchicalCheckboxDropdown: React.FC<HierarchicalCheckboxDropdownProps> = ({
+  hierarchicalData,
+  selectedItems,
+  setSelectedItems,
+  placeholder = 'Select Items',
+  checkboxColor = '#1976d2', // Default to Material-UI blue
+  fontSize = 14, // Default font size
+  checkboxSize = 24, // Default checkbox size
+  buttonFontColor = '#1976d2', // Default button font color (Material-UI blue)
+  buttonBorderColor = '#1976d2' // Default button border color (Material-UI blue)
+}) => {
+  const theme = createTheme({
+    typography: {
+      fontFamily: 'Roboto, Arial, sans-serif',
+      body1: {
+        fontSize: `${fontSize}px`,
+      },
+      body2: {
+        fontSize: `${fontSize}px`,
+      },
+    },
+    components: {
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            color: checkboxColor,
+            '&.Mui-checked': {
+              color: checkboxColor,
+            },
+            // Checkbox size customization
+            transform: `scale(${checkboxSize / 24})`,
+            '& .MuiSvgIcon-root': {
+              width: `${checkboxSize}px`,
+              height: `${checkboxSize}px`,
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            color: buttonFontColor,
+            borderColor: buttonBorderColor,
+            '&:hover': {
+              borderColor: buttonBorderColor,
+            },
+          },
+        },
+      },
+      // ... [rest of the previous theme configurations]
+    },
+  });
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // ... [Rest of the previous implementation remains the same]
+
+  // Render selected items summary with consistent font size
+  const renderSelectedItemsSummary = () => {
+    const selectedCount = selectedItems.length;
+    return (
+      <Typography 
+        variant="body1" 
+        sx={{ 
+          fontSize: `${fontSize}px`,
+          color: buttonFontColor 
+        }}
+      >
+        {selectedCount === 0 ? placeholder : `${selectedCount} Selected`}
+      </Typography>
+    );
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <div>
+        {/* Dropdown Trigger Button */}
+        <Button 
+          variant="outlined" 
+          onClick={handleOpenDropdown}
+          sx={{ 
+            width: '250px', 
+            textTransform: 'none',
+            color: buttonFontColor,
+            borderColor: buttonBorderColor,
+            '&:hover': {
+              borderColor: buttonBorderColor,
+            },
+          }}
+        >
+          {renderSelectedItemsSummary()}
+        </Button>
+
+        {/* ... [Rest of the previous implementation remains the same] */}
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
