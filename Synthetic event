@@ -1,0 +1,22 @@
+const handleClick = (e: React.MouseEvent<HTMLElement>) => {
+  console.log('Event triggered');
+}
+
+const triggerManually = () => {
+  const event = new MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: window
+  });
+
+  const syntheticEvent = {
+    ...event,
+    preventDefault: () => {},
+    stopPropagation: () => {},
+    type: 'click',
+    target: document.getElementById('myElement'),
+    currentTarget: document.getElementById('myElement')
+  } as React.MouseEvent<HTMLElement>;
+
+  handleClick(syntheticEvent);
+}
