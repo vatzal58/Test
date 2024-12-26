@@ -1,0 +1,263 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Checkbox, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Collapse,
+  Popover,
+  Divider,
+  TextField,
+  Button,
+  createTheme,
+  ThemeProvider,
+  Typography,
+  IconButton
+} from '@mui/material';
+// ... [Other imports remain the same]
+
+// ... [Interfaces remain the same]
+
+const HierarchicalCheckboxDropdown: React.FC<HierarchicalCheckboxDropdownProps> = ({
+  // ... [Props remain the same]
+}) => {
+  const theme = createTheme({
+    components: {
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            paddingTop: 0,
+            paddingBottom: 0,
+            '& .MuiListItemIcon-root': {
+              minWidth: '32px', // Reduce the default spacing of ListItemIcon
+            },
+          },
+        },
+      },
+      MuiListItemIcon: {
+        styleOverrides: {
+          root: {
+            marginRight: '-8px', // Reduce space between checkbox and label
+          },
+        },
+      },
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            padding: '4px', // Reduce checkbox padding
+            color: checkboxColor,
+            '&.Mui-checked': {
+              color: checkboxColor,
+            },
+            '&.Mui-indeterminate': {
+              color: checkboxIntermediateColor,
+            },
+            transform: `scale(${checkboxSize / 24})`,
+            '& .MuiSvgIcon-root': {
+              width: `${checkboxSize}px`,
+              height: `${checkboxSize}px`,
+            },
+          },
+        },
+      },
+      // ... [Other theme components remain the same]
+    },
+  });
+
+  // ... [State and other functions remain the same]
+
+  return (
+    <ThemeProvider theme={theme}>
+      <div>
+        {/* Dropdown Trigger Button */}
+        <Button 
+          variant="outlined" 
+          onClick={handleOpenDropdown}
+          sx={{ 
+            width: '250px', 
+            textTransform: 'none',
+            color: buttonFontColor,
+            borderColor: buttonBorderColor,
+            '&:hover': {
+              borderColor: buttonBorderColor,
+            },
+          }}
+        >
+          {renderSelectedItemsSummary()}
+        </Button>
+
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleCloseDropdown}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+        >
+          <List sx={{ width: '300px', maxHeight: '400px' }}>
+            {/* Search Input */}
+            <ListItem sx={{ pb: 1 }}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1 }} />,
+                }}
+                size="small"
+              />
+            </ListItem>
+
+            {/* Select All / Deselect All and Expand/Collapse All Options */}
+            <ListItem 
+              sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                py: 0.5 // Add a bit of vertical padding for this special row
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <ListItemIcon sx={{ minWidth: '32px' }}>
+                  <Checkbox
+                    edge="start"
+                    checked={areAllItemsSelected}
+                    indeterminate={
+                      selectedItems.length > 0 && 
+                      selectedItems.length < allItemIds.length
+                    }
+                    onChange={areAllItemsSelected ? deselectAllItems : selectAllItems}
+                    sx={{
+                      padding: '4px',
+                      transform: `scale(${checkboxSize / 24})`,
+                      '& .MuiSvgIcon-root': {
+                        width: `${checkboxSize}px`,
+                        height: `${checkboxSize}px`,
+                      },
+                      '&.Mui-indeterminate': {
+                        color: checkboxIntermediateColor,
+                      }
+                    }}
+                  />
+                </ListItemIcon>
+                <ListItemText 
+                  primary={
+                    <Typography variant="body1" sx={{ fontSize: `${fontSize}px` }}>
+                      {areAllItemsSelected ? 'Deselect All' : 'Select All'}
+                    </Typography>
+                  } 
+                />
+              </div>
+
+              {/* Expand/Collapse All Button */}
+              <IconButton 
+                onClick={openCategories.length === parentCategoryIds.length ? collapseAllCategories : expandAllCategories}
+                title={openCategories.length === parentCategoryIds.length ? "Collapse All" : "Expand All"}
+                size="small"
+                sx={{ ml: 1 }}
+              >
+                {openCategories.length === parentCategoryIds.length ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            </ListItem>
+            
+            <Divider />
+
+            {/* Hierarchical List */}
+            <List 
+              sx={{ 
+                maxHeight: '250px', 
+                overflow: 'auto',
+                py: 0 // Remove default padding from list
+              }}
+            >
+              {filteredItems.map(parent => (
+                <React.Fragment key={parent.id}>
+                  {/* Parent Item */}
+                  <ListItem sx={{ py: 0.5 }}>
+                    <ListItemIcon sx={{ minWidth: '32px' }}>
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          parent.children
+                            ? parent.children.every(child => selectedItems.includes(child.id))
+                            : selectedItems.includes(parent.id)
+                        }
+                        indeterminate={
+                          parent.children
+                            ? (parent.children.some(child => selectedItems.includes(child.id)) && 
+                               !parent.children.every(child => selectedItems.includes(child.id)))
+                            : false
+                        }
+                        onChange={() => 
+                          parent.children 
+                            ? toggleParentCategory(parent) 
+                            : toggleItemSelection(parent.id)
+                        }
+                        sx={{
+                          padding: '4px',
+                          transform: `scale(${checkboxSize / 24})`,
+                          '& .MuiSvgIcon-root': {
+                            width: `${checkboxSize}px`,
+                            height: `${checkboxSize}px`,
+                          },
+                        }}
+                      />
+                    </ListItemIcon>
+                    <ListItemText primary={parent.label} />
+                    {parent.children && (
+                      <IconButton 
+                        size="small" 
+                        onClick={() => toggleCategory(parent.id)}
+                        sx={{ p: 0.5 }}
+                      >
+                        {openCategories.includes(parent.id) ? <ExpandLess /> : <ExpandMore />}
+                      </IconButton>
+                    )}
+                  </ListItem>
+
+                  {/* Child Items */}
+                  {parent.children && (
+                    <Collapse in={openCategories.includes(parent.id)} timeout="auto" unmountOnExit>
+                      <List component="div" disablePadding sx={{ py: 0 }}>
+                        {parent.children.map(child => (
+                          <ListItem key={child.id} sx={{ pl: 4, py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: '32px' }}>
+                              <Checkbox
+                                edge="start"
+                                checked={selectedItems.includes(child.id)}
+                                onChange={() => toggleItemSelection(child.id)}
+                                sx={{
+                                  padding: '4px',
+                                  transform: `scale(${checkboxSize / 24})`,
+                                  '& .MuiSvgIcon-root': {
+                                    width: `${checkboxSize}px`,
+                                    height: `${checkboxSize}px`,
+                                  },
+                                }}
+                              />
+                            </ListItemIcon>
+                            <ListItemText primary={child.label} />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Collapse>
+                  )}
+                </React.Fragment>
+              ))}
+            </List>
+          </List>
+        </Popover>
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default HierarchicalCheckboxDropdown;
