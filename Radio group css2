@@ -1,0 +1,69 @@
+/* RadioGroup.css */
+.radio-group {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
+.radio-label {
+  cursor: pointer;
+}
+
+.radio-button-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.radio-input::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #8b5cf6;
+  transition: transform 0.2s ease-in-out;
+}
+
+.radio-input:checked {
+  border-color: #8b5cf6;
+}
+
+.radio-input:checked::before {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.radio-input:hover {
+  border-color: #a78bfa;
+}
+
+.radio-input:focus {
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+.radio-text {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.radio-label:hover .radio-text {
+  color: #111827;
+}
