@@ -1,0 +1,135 @@
+import React from 'react';
+
+interface RadioOption {
+  label: string;
+  value: string;
+}
+
+interface RadioGroupProps {
+  name: string;
+  options: RadioOption[];
+  selectedValue: string;
+  onChange: (value: string) => void;
+  className?: string;
+}
+
+const RadioGroup: React.FC<RadioGroupProps> = ({
+  name,
+  options,
+  selectedValue,
+  onChange,
+  className = ''
+}) => {
+  return (
+    <div className={`radio-group ${className}`}>
+      {options.map((option) => (
+        <label
+          key={option.value}
+          className="radio-label"
+        >
+          <div className="radio-button-wrapper">
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={selectedValue === option.value}
+              onChange={(e) => onChange(e.target.value)}
+              className="radio-input"
+            />
+            <span className="radio-text">{option.label}</span>
+          </div>
+        </label>
+      ))}
+      <style>{`
+        .radio-group {
+          display: flex;
+          flex-direction: row;
+          gap: 24px;
+        }
+
+        .radio-label {
+          cursor: pointer;
+        }
+
+        .radio-button-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .radio-input {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border: 2px solid #ccc;
+          border-radius: 50%;
+          outline: none;
+          cursor: pointer;
+          position: relative;
+          transition: all 0.2s ease-in-out;
+        }
+
+        .radio-input:checked {
+          border: 2px solid #8b5cf6;
+          background-color: #8b5cf6;
+          border-width: 6px;
+        }
+
+        .radio-input:hover {
+          border-color: #a78bfa;
+        }
+
+        .radio-input:focus {
+          box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+        }
+
+        .radio-text {
+          font-size: 14px;
+          color: #4b5563;
+        }
+
+        .radio-label:hover .radio-text {
+          color: #111827;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Example usage component
+const ExampleUsage = () => {
+  const [selected, setSelected] = React.useState('option1');
+
+  const radioOptions = [
+    { label: 'Option 1', value: 'option1' },
+    { label: 'Option 2', value: 'option2' },
+    { label: 'Option 3', value: 'option3' },
+  ];
+
+  return (
+    <div style={{ padding: '16px' }}>
+      <h2 style={{ 
+        fontSize: '18px', 
+        fontWeight: 600, 
+        marginBottom: '16px' 
+      }}>
+        Select an option:
+      </h2>
+      <RadioGroup
+        name="example"
+        options={radioOptions}
+        selectedValue={selected}
+        onChange={setSelected}
+      />
+      <p style={{ 
+        marginTop: '16px', 
+        fontSize: '14px', 
+        color: '#4b5563' 
+      }}>
+        Selected value: {selected}
+      </p>
+    </div>
+  );
+};
+
+export default ExampleUsage;
