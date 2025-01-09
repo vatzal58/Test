@@ -1,0 +1,32 @@
+import React from 'react';
+import { FormControl, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material';
+
+const CustomRadioGroup: React.FC = () => {
+  return (
+    <FormControl>
+      <Typography variant="h6">Select an option:</Typography>
+      <RadioGroup defaultValue="option1" name="radio-buttons-group">
+        <FormControlLabel
+          value="option1"
+          control={<Radio />}
+          label="Option 1"
+          sx={{ '& .MuiTypography-root': { fontSize: '1.2rem' } }}
+        />
+        <FormControlLabel
+          value="option2"
+          control={<Radio />}
+          label="Option 2"
+          sx={{ '& .MuiTypography-root': { fontSize: '1.2rem' } }}
+        />
+        <FormControlLabel
+          value="option3"
+          control={<Radio />}
+          label="Option 3"
+          sx={{ '& .MuiTypography-root': { fontSize: '1.2rem' } }}
+        />
+      </RadioGroup>
+    </FormControl>
+  );
+};
+
+export default CustomRadioGroup;
