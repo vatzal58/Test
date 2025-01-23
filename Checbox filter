@@ -1,0 +1,249 @@
+import React, { useEffect, useMemo, useState } from "react";
+import "../RelatedDetails/RelatedDetailsTable.css";
+import { PriorAlertCustomTable } from "./../table/PriorAlertCustomTable";
+import { priorAlertColumns } from "./priorAlertColumns";
+import { PriorAlertSubetailsResult } from "./../../../../etc";
+import { useWebPopup } from "./../../books/useWebPopup";
+import { ExportToExcel } from "./../../utils/ExportToExcel";
+import { useCCRContext } from "./../../../books";
+import { UPDATE_DATA } from "./../../../../../actions/actionTypes";
+import { userEncryption } from "./../../../books/useEncryption";
+import { parseISO, format } from 'date-fns';
+import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Checkbox, FormControlLabel } from '@mui/material';
+import { parseAndMaskSSN } from "./../../../../../Do/TradeDetails/Comments";
+
+interface PriorAlertTableProps {
+    priorAlertdetails: {
+        isLoading: boolean,
+        data: PriorAlertSubetailsResult,
+        error: boolean
+    },
+    refreshPriorAlertsAndRelatedClientAlerts: () => void,
+    showByDefault: boolean
+}
+
+export const PriorAlertTable = ({ priorAlertdetails, refreshPriorAlertsAndRelatedClientAlerts, showByDefault }: PriorAlertTableProps) => {
+    const { isLoading, data, error } = priorAlertdetails;
+    const { openURL } = useWebPopup();
+    const { dispatch, currentMetadata, state: { clientAdvisorDetails } } = useCCRContext();
+    const clientName = clientAdvisorDetails?.HeaderDetails?.ClientName;
+    const { encryptData } = userEncryption();
+
+    const PriorAlertabata = data?.PriorAlertabata || [];
+    const [showPriorAlerts, setShowPriorAlerts] = useState(showByDefault);
+    const [tradeChecked, setTradeChecked] = useState(true);
+    const [clientAccountChecked, setClientAccountChecked] = useState(true);
+
+    const mappedData = () => {
+        return PriorAlertabata?.map((row: any) => {
+            return {
+                ProcessDate: row.ProcessDate ? format(parseISO(row.ProcessDate), 'MM/dd/yyyy') : null,
+                ContactedDate: row.ContactDate ? format(parseISO(row.ContactDate), 'MM/dd/yyyy') : null,
+                Scenario: row.Scenario,
+                Status: row.Status,
+                ClientContact: row.ClientContact,
+                AccountNumber: row.AccountNumber,
+                FAMNumber: row.FAMNumber,
+                AdvisorName: row.AdvisorName,
+                MostRecentComment: row.MostRecentComment.includes('Overview')
+                    ? `System Generated Pre-work Link: ${clientName} ${row.ProcessDate ? format(parseISO(row.ProcessDate), 'MM/dd/yyyy') : null}`
+                    : row.MostRecentComment.includes('Overview') ? parseAndMaskSSN(row.MostRecentComment, false) : null,
+                GroupCD: row.GroupCD,
+                ObjectID: row.ObjectID,
+                ObjectTypeCode: row.ObjectTypeCode,
+                AlertKey: row.AlertKey,
+                View: row.View,
+            }
+        });
+    }
+
+    const rows = mappedData();
+    const [showAll, setShowAll] = useState(false);
+    const AllScenFlosDropDown = 'All scenarios';
+    const [filterAccountRows, setFilterAccountRows] = useState({
+        scenarioFilter: AllScenFlosDropDown,
+        filteredRows: rows || [],
+    });
+
+    useEffect(() => {
+        if (isLoading) return;
+        dispatch({
+            type: UPDATE_DATA,
+            payload: {
+                PriorAlertAndClientContact: {
+                    headers: priorAlertColumns,
+                    rows,
+                },
+            },
+        });
+    }, [isLoading]);
+
+    const openWebpage = async (row: any) => {
+        const toEncryptText = `src=CRWS&AlertKey=${row.AlertKey}`;
+        const { OutputText } = await encryptData(toEncryptText, currentMetadata);
+        const finalLink = `${window.location.origin}/ui/crmslist/${OutputText}`;
+        const childWindow = openURL(finalLink);
+        if (childWindow) {
+            childWindow.onload = function () {
+                childWindow.onbeforeunload = function () {
+                    setTimeout(() => {
+                        window.removeEventListener("message", handleStatusUpdate);
+                    }, 2000);
+                }
+            }
+        }
+    }
+
+    const handleStatusUpdate = (event: MessageEvent) => {
+        if (event.origin === window.location.origin) {
+            if (event.data?.isActionTaken) {
+                refreshPriorAlertsAndRelatedClientAlerts();
+            }
+        }
+    }
+
+    window.addEventListener('message', handleStatusUpdate);
+
+    const getFilteredRows = () => {
+        let filteredRows = rows;
+
+        if (tradeChecked && !clientAccountChecked) {
+            filteredRows = filteredRows.filter((row: any) => row.ObjectTypeCode === 'TR');
+        } else if (!tradeChecked && clientAccountChecked) {
+            filteredRows = filteredRows.filter((row: any) => row.ObjectTypeCode !== 'TR');
+        }
+
+        return filteredRows;
+    };
+
+    const getUniqueScenarioNames = (data: object[] | undefined) => {
+        const filteredRows = getFilteredRows();
+        const unique1: any = [...new Set(filteredRows?.map((item: any) => item.Scenario))].flat(Infinity);
+        unique1.unshift(AllScenFlosDropDown);
+        const unique2: any = [...new Set(unique1?.map((item: any) => item))].filter((item: any) => {
+            return item;
+        });
+        return unique2;
+    };
+
+    const ScenarioNames = useMemo(() => { return getUniqueScenarioNames(rows) }, [rows, tradeChecked, clientAccountChecked]);
+
+    const handleTradeCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.checked && !clientAccountChecked) {
+            return;
+        }
+        setTradeChecked(event.target.checked);
+        applyFilters(filterAccountRows.scenarioFilter, event.target.checked, clientAccountChecked);
+    };
+
+    const handleClientAccountCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.checked && !tradeChecked) {
+            return;
+        }
+        setClientAccountChecked(event.target.checked);
+        applyFilters(filterAccountRows.scenarioFilter, tradeChecked, event.target.checked);
+    };
+
+    const applyFilters = (scenarioFilter: string, tradeChecked: boolean, clientAccountChecked: boolean) => {
+        let filteredRows = rows;
+
+        if (tradeChecked && !clientAccountChecked) {
+            filteredRows = filteredRows.filter((row: any) => row.ObjectTypeCode === 'TR');
+        } else if (!tradeChecked && clientAccountChecked) {
+            filteredRows = filteredRows.filter((row: any) => row.ObjectTypeCode !== 'TR');
+        }
+
+        if (scenarioFilter !== AllScenFlosDropDown) {
+            filteredRows = filteredRows.filter((row: any) => row.Scenario.includes(scenarioFilter));
+        }
+
+        setFilterAccountRows((prevStore) => ({
+            ...prevStore,
+            filteredRows,
+        }));
+    };
+
+    const ScenarioFilterHandler = (event: SelectChangeEvent) => {
+        const ScenarioNameFilter: string = event.target.value;
+        setFilterAccountRows((prevStore) => ({
+            ...prevStore,
+            scenarioFilter: ScenarioNameFilter,
+        }));
+        applyFilters(ScenarioNameFilter, tradeChecked, clientAccountChecked);
+    }
+
+    return (
+        <div className="hix-accordion_item hix-accordion_content-active" id="accordion-6">
+            <div className="related-details-wrapper">
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                }}>
+                    <div className="detail-page-table-title">
+                        Prior Alerts and Client Contact ({filterAccountRows.filteredRows.length})
+                    </div>
+                    <div className="scenario-filter">
+                        <FormControlLabel
+                            control={<Checkbox checked={tradeChecked} onChange={handleTradeCheckboxChange} />}
+                            label="Trade"
+                        />
+                        <FormControlLabel
+                            control={<Checkbox checked={clientAccountChecked} onChange={handleClientAccountCheckboxChange} />}
+                            label="Client & Account"
+                        />
+                        <FormControl sx={{ m: 1, minWidth: 120 }} size="small">
+                            <InputLabel id="demo-select-small">Scenario</InputLabel>
+                            <Select
+                                labelId="account-details-scenario"
+                                id="account-details-scenario"
+                                value={filterAccountRows.scenarioFilter}
+                                label="Scenario"
+                                onChange={ScenarioFilterHandler}
+                                sx={{
+                                    fontSize: "var(--font-size-sxs)",
+                                }}
+                            >
+                                {ScenarioNames.map((scenario: any, index: number) => (
+                                    <MenuItem
+                                        sx={{ fontSize: "var(--font-size-sxs)" }}
+                                        key={index}
+                                        value={scenario}>{scenario}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                        {showPriorAlerts && filterAccountRows.filteredRows.length > 0 && <ExportToExcel
+                            sectionHeader={priorAlertColumns}
+                            sectionData={mappedData()}
+                            sheetName={"Prior Alerts and Client Contact"}
+                            FileName={"PriorAlertsClientContact"}
+                        />}
+                        <a className="links" onClick={() => setShowPriorAlerts(!showPriorAlerts)}>{showPriorAlerts ? "Hide" : "Show"}</a>
+                    </div>
+                </div>
+            </div>
+            {showPriorAlerts && <section>
+                {isLoading ? <div>Loading...</div> : error ? <div>Unable to load Data</div> :
+                    <PriorAlertCustomTable
+                        headCells={priorAlertColumns}
+                        rows={filterAccountRows.filteredRows}
+                        onHyperlinkClick={openWebpage}
+                        showAll={showAll}
+                        showAllButton={true} />
+                }
+                <div style={{ textAlign: "center", marginTop: "5px" }}>
+                    {rows && rows.length >= 2 && <a
+                        href="#"
+                        className="links"
+                        onClick={() => {
+                            setShowAll(!showAll);
+                        }}
+                    >{showAll ? "Hide" : "Show All"}</a>}
+                </div>
+            </section>}
+        </div>
+    );
+}
