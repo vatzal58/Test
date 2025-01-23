@@ -1,0 +1,38 @@
+<FormControlLabel
+    control={
+        <Checkbox
+            checked={tradeChecked}
+            onChange={handleTradeCheckboxChange}
+            sx={{
+                color: "#4CAF50", // Change checkbox color (green in this case)
+                '&.Mui-checked': {
+                    color: "#4CAF50", // Change checked checkbox color
+                },
+            }}
+        />
+    }
+    label="Trade"
+    sx={{
+        fontSize: "14px", // Change font size of the label
+        color: "#333", // Change label color (dark gray in this case)
+    }}
+/>
+<FormControlLabel
+    control={
+        <Checkbox
+            checked={clientAccountChecked}
+            onChange={handleClientAccountCheckboxChange}
+            sx={{
+                color: "#2196F3", // Change checkbox color (blue in this case)
+                '&.Mui-checked': {
+                    color: "#2196F3", // Change checked checkbox color
+                },
+            }}
+        />
+    }
+    label="Client & Account"
+    sx={{
+        fontSize: "14px", // Change font size of the label
+        color: "#333", // Change label color (dark gray in this case)
+    }}
+/>
