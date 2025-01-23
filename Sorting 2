@@ -1,0 +1,12 @@
+import { convertMenuLinesToBriggs } from "../../../../<TableSortLabel
+    active={orderBy === headCell.id}
+    direction={orderBy === headCell.id ? order : "asc"}
+    onClick={() => handleSort(headCell.id, headCell.type)}
+    sx={{
+        "& .MuiTableSortLabel-icon": {
+            color: "white !important", // Set the sorting icon color to white
+        },
+    }}
+>
+    <span style={{ fontSize: "var(--font-size-s)" }}>{headCell.label}</span>
+</TableSortLabel>";
