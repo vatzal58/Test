@@ -1,0 +1,14 @@
+const extractBracketContent = (input: string): string | null => {
+  // Use a global regex to find all matches
+  const matches = input.match(/\(([^)]+)\)/g);
+  
+  // If matches are found, get the last one
+  if (matches && matches.length > 0) {
+    // Extract the content of the last match
+    const lastMatch = matches[matches.length - 1];
+    return lastMatch.slice(1, -1); // Remove the parentheses
+  }
+  
+  // If no matches, return null
+  return null;
+};
