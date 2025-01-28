@@ -27,3 +27,14 @@ tsconfig.json
   },
   "exclude": ["node_modules", "dist"]
 }
+
+
+{
+  "name": "@supv/shared-ui",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "react": "^18.2.0"
+  }
+}
