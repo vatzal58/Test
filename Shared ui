@@ -12,3 +12,18 @@ package.json
     "typescript": "^5.3.3"
   }
 }
+
+tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "baseUrl": ".",
+    "paths": {
+      "@supv/shared-ui/*": ["packages/shared/src/*"],
+      "@supv/apps/*": ["apps/supv-main-app/src/apps/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}
