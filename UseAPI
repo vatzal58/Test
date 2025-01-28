@@ -1,0 +1,61 @@
+import { useState, useEffect, useCallback } from 'react';
+
+type EndpointFunction<IArgs extends Record<string, string> | undefined, Req, Res> = (
+  args: IArgs,
+  req: Req,
+  headers?: HeadersInit
+) => {
+  cancel: () => void;
+  promise: Promise<Res>;
+};
+
+export function useApi<IArgs extends Record<string, string> | undefined, Req, Res>(
+  endpoint: EndpointFunction<IArgs, Req, Res>,
+  args: IArgs,
+  payload: Req,
+  dependencies: React.DependencyList = [],
+  headers?: HeadersInit
+) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState<Res | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+
+  const refetch = useCallback(() => {
+    setFetchTrigger(prev => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    const { cancel, promise } = endpoint(args, payload, headers);
+    let isCancelled = false;
+
+    setIsLoading(true);
+    setError(null);
+
+    promise
+      .then(result => {
+        if (!isCancelled) {
+          setData(result);
+          setError(null);
+        }
+      })
+      .catch(err => {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+      cancel();
+    };
+  }, [endpoint, args, payload, headers, ...dependencies, fetchTrigger]);
+
+  return { isLoading, data, error, refetch };
+}
