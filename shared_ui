@@ -1,0 +1,29 @@
+my-repo/
+├── public/                  # Static assets (e.g., index.html, favicon.ico)
+├── src/
+│   ├── apps/                # Contains individual React applications
+│   │   ├── app1/            # First React app
+│   │   │   ├── components/  # App-specific components
+│   │   │   ├── pages/       # App-specific pages
+│   │   │   ├── App.tsx      # App1 entry point
+│   │   │   └── index.tsx    # App1 bootstrap
+│   │   ├── app2/            # Second React app
+│   │   │   ├── components/  # App-specific components
+│   │   │   ├── pages/       # App-specific pages
+│   │   │   ├── App.tsx      # App2 entry point
+│   │   │   └── index.tsx    # App2 bootstrap
+│   ├── common/              # Shared components, utilities, and hooks
+│   │   ├── components/      # Shared components
+│   │   ├── hooks/           # Shared hooks
+│   │   ├── utils/           # Shared utilities
+│   │   └── types/           # Shared TypeScript types
+│   ├── routes/              # React Router configuration
+│   │   └── index.tsx        # Main router setup
+│   ├── styles/              # Global styles and themes
+│   ├── App.tsx              # Main App component
+│   └── index.tsx            # Entry point for the entire application
+├── .env                     # Environment variables
+├── tsconfig.json            # TypeScript configuration
+├── package.json             # Project dependencies and scripts
+├── webpack.config.js        # Webpack configuration (if using custom setup)
+└── README.md                # Project documentation
