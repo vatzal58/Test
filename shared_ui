@@ -27,3 +27,21 @@ my-repo/
 ├── package.json             # Project dependencies and scripts
 ├── webpack.config.js        # Webpack configuration (if using custom setup)
 └── README.md                # Project documentation
+
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import App1 from '../apps/app1';
+import App2 from '../apps/app2';
+
+const AppRouter = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/app1/*" element={<App1 />} />
+        <Route path="/app2/*" element={<App2 />} />
+        <Route path="/" element={<div>Home Page</div>} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default AppRouter;
