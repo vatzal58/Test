@@ -39,3 +39,19 @@ tsconfig.json
     "react": "^18.2.0"
   }
 }
+
+{
+  "compilerOptions": {
+    // ...existing config...
+    "baseUrl": ".",
+    "paths": {
+      "@supv/shared-ui/*": ["../../packages/shared/src/*"],
+      "@supv/apps/*": ["./src/apps/*"]
+    }
+  }
+}
+{
+  "dependencies": {
+    "@supv/shared-ui": "workspace:*"
+  }
+}
