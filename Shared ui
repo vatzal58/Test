@@ -1,0 +1,14 @@
+package.json
+{
+  "name": "supv_shared_ui_react",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "yarn workspace supv-main-app dev",
+    "build": "yarn workspace supv-main-app build"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.2",
+    "typescript": "^5.3.3"
+  }
+}
