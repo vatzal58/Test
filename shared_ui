@@ -55,3 +55,16 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+
+import React from 'react';
+
+const HomePage = () => {
+  return (
+    <div>
+      <h1>Welcome to Gift & Entertainment</h1>
+      <p>Explore our amazing gifts and events!</p>
+    </div>
+  );
+};
+
+export default HomePage;
