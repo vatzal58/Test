@@ -1,0 +1,118 @@
+import React, { useState } from 'react';
+import {
+  // ... existing imports
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import {
+  PictureAsPdf as PdfIcon,
+  TableView as ExcelIcon,
+} from '@mui/icons-material';
+
+// ... (keep existing interfaces and configurations)
+
+const Overview: React.FC<OverviewProps> = ({ data, columns, onRowClick }) => {
+  // ... existing state and handlers
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Overview Report', 10, 10);
+    doc.autoTable({
+      head: [columns.map((col) => col.label)],
+      body: data.map((row) => columns.map((col) => row[col.id as keyof OverviewData])),
+    });
+    doc.save('overview.pdf');
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Overview</Typography>
+        <Box>
+          <Tooltip title="Export to PDF">
+            <IconButton 
+              onClick={exportToPDF}
+              size="small"
+              sx={{ 
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'primary.light',
+                  color: 'primary.contrastText',
+                },
+              }}
+            >
+              <PdfIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+      {/* ... rest of the Overview component */}
+    </Box>
+  );
+};
+
+const Summary: React.FC<SummaryProps> = ({ data, columns }) => {
+  // ... existing state and handlers
+
+  const exportToExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+    XLSX.writeFile(wb, 'summary.xlsx');
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Summary Report', 10, 10);
+    doc.autoTable({
+      head: [columns.map((col) => col.label)],
+      body: data.map((row) => columns.map((col) => row[col.id as keyof SummaryData])),
+    });
+    doc.save('summary.pdf');
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Summary</Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Export to Excel">
+            <IconButton 
+              onClick={exportToExcel}
+              size="small"
+              sx={{ 
+                color: 'success.main',
+                '&:hover': {
+                  backgroundColor: 'success.light',
+                  color: 'success.contrastText',
+                },
+              }}
+            >
+              <ExcelIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Export to PDF">
+            <IconButton 
+              onClick={exportToPDF}
+              size="small"
+              sx={{ 
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'primary.light',
+                  color: 'primary.contrastText',
+                },
+              }}
+            >
+              <PdfIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+      {/* ... rest of the Summary component */}
+    </Box>
+  );
+};
+
+// ... (keep rest of the code the same)
+
+export default GiftsAndEntertainmentManager;
