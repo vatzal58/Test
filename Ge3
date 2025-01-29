@@ -1,0 +1,456 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Grid,
+  TextField,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Chip,
+  TableSortLabel,
+  TablePagination,
+  SelectChangeEvent,
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+
+// Interfaces
+interface Column {
+  id: string;
+  label: string;
+  type: 'string' | 'number' | 'date';
+  formatting: 'default' | 'date';
+}
+
+interface OverviewData {
+  label: string;
+  count: number;
+}
+
+interface SummaryData {
+  scenario: string;
+  employeeName: string;
+  attendeeName: string;
+  employee1: string;
+  successDate: string;
+  status: string;
+}
+
+interface FilterState {
+  scenarios: string[];
+  statuses: string[];
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  searchText: string;
+}
+
+interface SearchCriteriaProps {
+  onFilterChange: (filters: FilterState) => void;
+}
+
+interface OverviewProps {
+  data: OverviewData[];
+  columns: Column[];
+}
+
+interface SummaryProps {
+  data: SummaryData[];
+  columns: Column[];
+}
+
+// Configuration
+const SCENARIO_OPTIONS = [
+  { value: 'Gifts Received Over $100', label: 'Gifts Received Over $100' },
+  { value: 'Gifts Given Over $100', label: 'Gifts Given Over $100' },
+  { value: 'Entertainment Provided Over $300', label: 'Entertainment Provided Over $300' },
+  { value: 'Entertainment Received >$300', label: 'Entertainment Received >$300' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'Open', label: 'Open' },
+  { value: 'Complete', label: 'Complete' },
+];
+
+const overviewColumns: Column[] = [
+  { id: 'label', label: 'Scenario', type: 'string', formatting: 'default' },
+  { id: 'count', label: 'Count', type: 'number', formatting: 'default' },
+];
+
+const summaryColumns: Column[] = [
+  { id: 'scenario', label: 'Scenarios', type: 'string', formatting: 'default' },
+  { id: 'employeeName', label: 'Employee Name', type: 'string', formatting: 'default' },
+  { id: 'attendeeName', label: 'Attendee Name/Firm Name', type: 'string', formatting: 'default' },
+  { id: 'employee1', label: 'Employee1', type: 'string', formatting: 'default' },
+  { id: 'successDate', label: 'Success Date', type: 'date', formatting: 'date' },
+  { id: 'status', label: 'Status', type: 'string', formatting: 'default' },
+];
+
+// Sample Data
+const initialOverviewData: OverviewData[] = [
+  { label: 'Gifts Received Over $100', count: 5 },
+  { label: 'Gifts Given Over $100', count: 3 },
+  { label: 'Entertainment Provided Over $300', count: 2 },
+];
+
+const initialSummaryData: SummaryData[] = [
+  {
+    scenario: 'TPP Firm Branded Gifts>$50 (per day)',
+    employeeName: 'Annent Ashley',
+    attendeeName: 'T. Rowe Price',
+    employee1: '21645040',
+    successDate: '12/13/2024',
+    status: 'Open',
+  },
+];
+
+const SearchCriteria: React.FC<SearchCriteriaProps> = ({ onFilterChange }) => {
+  const [scenarios, setScenarios] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date('2024-07-28'),
+    to: new Date('2025-01-28'),
+  });
+  const [searchText, setSearchText] = useState('');
+
+  const handleScenarioChange = (event: SelectChangeEvent<string[]>) => {
+    const selectedScenarios = typeof event.target.value === 'string' 
+      ? event.target.value.split(',') 
+      : event.target.value;
+    setScenarios(selectedScenarios);
+    onFilterChange({ scenarios: selectedScenarios, statuses, dateRange, searchText });
+  };
+
+  const handleStatusChange = (event: SelectChangeEvent<string[]>) => {
+    const selectedStatuses = typeof event.target.value === 'string' 
+      ? event.target.value.split(',') 
+      : event.target.value;
+    setStatuses(selectedStatuses);
+    onFilterChange({ scenarios, statuses: selectedStatuses, dateRange, searchText });
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Search Criteria
+      </Typography>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Scenarios</InputLabel>
+            <Select
+              multiple
+              value={scenarios}
+              onChange={handleScenarioChange}
+              label="Scenarios"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip key={value} label={value} />
+                  ))}
+                </Box>
+              )}
+            >
+              {SCENARIO_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              multiple
+              value={statuses}
+              onChange={handleStatusChange}
+              label="Status"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip key={value} label={value} />
+                  ))}
+                </Box>
+              )}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12}>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <DatePicker
+                  label="From"
+                  value={dateRange.from}
+                  onChange={(date) => date && setDateRange({ ...dateRange, from: date })}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <DatePicker
+                  label="To"
+                  value={dateRange.to}
+                  onChange={(date) => date && setDateRange({ ...dateRange, to: date })}
+                />
+              </Grid>
+            </Grid>
+          </LocalizationProvider>
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Search by Employee or Firm"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+const Overview: React.FC<OverviewProps> = ({ data, columns }) => {
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [orderBy, setOrderBy] = useState('label');
+
+  const handleSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedData = [...data].sort((a, b) => {
+    const orderMultiplier = order === 'asc' ? 1 : -1;
+    return (a[orderBy as keyof OverviewData] > b[orderBy as keyof OverviewData] ? 1 : -1) * orderMultiplier;
+  });
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Overview Report', 10, 10);
+    doc.autoTable({
+      head: [columns.map((col) => col.label)],
+      body: data.map((row) => columns.map((col) => row[col.id as keyof OverviewData])),
+    });
+    doc.save('overview.pdf');
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Overview</Typography>
+        <Button onClick={exportToPDF} variant="contained">
+          Export to PDF
+        </Button>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {columns.map((col) => (
+                <TableCell key={col.id}>
+                  <TableSortLabel
+                    active={orderBy === col.id}
+                    direction={orderBy === col.id ? order : 'asc'}
+                    onClick={() => handleSort(col.id)}
+                  >
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {sortedData.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((col) => (
+                  <TableCell key={col.id}>{row[col.id as keyof OverviewData]}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+};
+
+const Summary: React.FC<SummaryProps> = ({ data, columns }) => {
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [orderBy, setOrderBy] = useState('scenario');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const handleSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedData = [...data].sort((a, b) => {
+    const orderMultiplier = order === 'asc' ? 1 : -1;
+    return (a[orderBy as keyof SummaryData] > b[orderBy as keyof SummaryData] ? 1 : -1) * orderMultiplier;
+  });
+
+  const paginatedData = sortedData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const exportToExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+    XLSX.writeFile(wb, 'summary.xlsx');
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Summary Report', 10, 10);
+    doc.autoTable({
+      head: [columns.map((col) => col.label)],
+      body: data.map((row) => columns.map((col) => row[col.id as keyof SummaryData])),
+    });
+    doc.save('summary.pdf');
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Summary</Typography>
+        <Box>
+          <Button onClick={exportToExcel} variant="contained" sx={{ mr: 2 }}>
+            Export to Excel
+          </Button>
+          <Button onClick={exportToPDF} variant="contained">
+            Export to PDF
+          </Button>
+        </Box>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {columns.map((col) => (
+                <TableCell key={col.id}>
+                  <TableSortLabel
+                    active={orderBy === col.id}
+                    direction={orderBy === col.id ? order : 'asc'}
+                    onClick={() => handleSort(col.id)}
+                  >
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {paginatedData.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((col) => (
+                  <TableCell key={col.id}>{row[col.id as keyof SummaryData]}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25]}
+        component="div"
+        count={data.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(parseInt(event.target.value, 10));
+          setPage(0);
+        }}
+      />
+    </Box>
+  );
+};
+
+const GiftsAndEntertainmentManager: React.FC = () => {
+  const [filters, setFilters] = useState<FilterState>({
+    scenarios: [],
+    statuses: [],
+    dateRange: { from: new Date('2024-07-28'), to: new Date('2025-01-28') },
+    searchText: '',
+  });
+  const [overviewData, setOverviewData] = useState<OverviewData[]>(initialOverviewData);
+  const [summaryData, setSummaryData] = useState<SummaryData[]>(initialSummaryData);
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    const filteredData = initialSummaryData.filter((row) => {
+      const matchesScenario = newFilters.scenarios.length === 0 || newFilters.scenarios.includes(row.scenario);
+      const matchesStatus = newFilters.statuses.length === 0 || newFilters.statuses.includes(row.status);
+      const matchesSearch = newFilters.searchText === '' || 
+        row.employeeName.toLowerCase().includes(newFilters.searchText.toLowerCase()) ||
+        row.attendeeName.toLowerCase().includes(newFilters.searchText.toLowerCase());
+      const rowDate = new Date(row.successDate);
+      const matchesDate = rowDate >= newFilters.dateRange.from && rowDate <= newFilters.dateRange.to;
+      
+      return matchesScenario && matchesStatus && matchesSearch && matchesDate;
+    });
+    setSummaryData(filteredData);
+  };
+
+  const handleOverviewClick = (item: OverviewData) => {
+    const newSummaryData = initialSummaryData.filter((row) => row.scenario.includes(item.label));
+    setSummaryData(newSummaryData);
+  };
+
+  return (
+    <Box sx={{ p: 4 }}>
+      {/* Top section with Search Criteria and Overview side by side */}
+      <Grid container spacing={4} sx={{ mb: 4 }}>
+        {/* Search Criteria taking up left half */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <SearchCriteria onFilterChange={handleFilterChange} />
+          </Paper>
+        </Grid>
+        
+        {/* Overview taking up right half */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Overview 
+              data={overviewData} 
+              columns={overviewColumns} 
+            />
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Summary section taking full width at bottom */}
+      <Paper sx={{ p: 3 }}>
+        <Summary 
+          data={summaryData} 
+          columns={summaryColumns} 
+        />
+      </Paper>
+    </Box>
+  );
+};
+
+export default GiftsAndEntertainmentManager;
