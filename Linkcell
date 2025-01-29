@@ -1,2 +1,119 @@
+// ... (previous imports remain the same)
+import { styled } from '@mui/material/styles';
+import { Link } from '@mui/material';
 
-// Modify the ClickableCell styled component const LinkCell = styled(TableCell)(({ theme }) => ({ padding: '16px', '& .cell-link': { color: theme.palette.primary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline', cursor: 'pointer', }, }, }));
+// Modify the ClickableCell styled component
+const LinkCell = styled(TableCell)(({ theme }) => ({
+  padding: '16px',
+  '& .cell-link': {
+    color: theme.palette.primary.main,
+    textDecoration: 'none',
+    '&:hover': {
+      textDecoration: 'underline',
+      cursor: 'pointer',
+    },
+  },
+}));
+
+// Rest of the interfaces remain the same...
+
+const Overview: React.FC<OverviewProps> = ({ data, columns, onRowClick }) => {
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [orderBy, setOrderBy] = useState('label');
+
+  const handleSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const handleCellClick = (column: Column, value: any) => {
+    if (column.clickable && onRowClick) {
+      onRowClick(value);
+    }
+  };
+
+  const renderCell = (column: Column, row: OverviewData) => {
+    if (column.clickable) {
+      return (
+        <Link
+          component="span"
+          className="cell-link"
+          onClick={() => handleCellClick(column, row)}
+        >
+          {row[column.id as keyof OverviewData]}
+        </Link>
+      );
+    }
+    return row[column.id as keyof OverviewData];
+  };
+
+  const sortedData = [...data].sort((a, b) => {
+    const orderMultiplier = order === 'asc' ? 1 : -1;
+    return (a[orderBy as keyof OverviewData] > b[orderBy as keyof OverviewData] ? 1 : -1) * orderMultiplier;
+  });
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Overview</Typography>
+        <Tooltip title="Export to PDF">
+          <IconButton 
+            onClick={exportToPDF}
+            size="small"
+            sx={{ 
+              color: 'primary.main',
+              '&:hover': {
+                backgroundColor: 'primary.light',
+                color: 'primary.contrastText',
+              },
+            }}
+          >
+            <PdfIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table>
+          <StyledTableHead>
+            <TableRow>
+              {columns.map((col) => (
+                <TableCell 
+                  key={col.id}
+                  width={col.width}
+                  align={col.align}
+                >
+                  <TableSortLabel
+                    active={orderBy === col.id}
+                    direction={orderBy === col.id ? order : 'asc'}
+                    onClick={() => handleSort(col.id)}
+                  >
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </StyledTableHead>
+          <TableBody>
+            {sortedData.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((col) => (
+                  <LinkCell
+                    key={col.id}
+                    align={col.align}
+                  >
+                    {renderCell(col, row)}
+                  </LinkCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+};
+
+// ... (rest of the code remains the same)
+
+export default GiftsAndEntertainmentManager;
