@@ -1,0 +1,269 @@
+// ... (previous imports remain the same)
+
+// Add new interfaces for search configuration
+interface SearchField {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'date';
+  field: string;
+}
+
+interface SearchState {
+  searchBy: string;
+  searchText: string;
+}
+
+// Update FilterState interface
+interface FilterState {
+  scenarios: string[];
+  statuses: string[];
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  search: SearchState;
+}
+
+// Search configuration
+const SEARCH_FIELDS: SearchField[] = [
+  { id: 'employeeName', label: 'Employee Name', type: 'text', field: 'employeeName' },
+  { id: 'attendeeName', label: 'Attendee/Firm Name', type: 'text', field: 'attendeeName' },
+  { id: 'employee1', label: 'Employee ID', type: 'text', field: 'employee1' },
+  { id: 'scenario', label: 'Scenario', type: 'text', field: 'scenario' },
+];
+
+const SearchCriteria: React.FC<SearchCriteriaProps> = ({ onFilterChange }) => {
+  const [scenarios, setScenarios] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date('2024-07-28'),
+    to: new Date('2025-01-28'),
+  });
+  const [search, setSearch] = useState<SearchState>({
+    searchBy: SEARCH_FIELDS[0].id,
+    searchText: '',
+  });
+
+  const handleSearchFieldChange = (event: SelectChangeEvent<string>) => {
+    const newSearch = {
+      ...search,
+      searchBy: event.target.value,
+    };
+    setSearch(newSearch);
+    onFilterChange({ scenarios, statuses, dateRange, search: newSearch });
+  };
+
+  const handleSearchTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearch = {
+      ...search,
+      searchText: event.target.value,
+    };
+    setSearch(newSearch);
+    onFilterChange({ scenarios, statuses, dateRange, search: newSearch });
+  };
+
+  // ... (keep other handlers for scenarios, statuses, dateRange)
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Search Criteria
+      </Typography>
+      <Grid container spacing={3}>
+        {/* Scenarios and Status selections remain the same */}
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Scenarios</InputLabel>
+            <Select
+              multiple
+              value={scenarios}
+              onChange={handleScenarioChange}
+              label="Scenarios"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={value}
+                      onDelete={() => handleChipDelete('scenario', value)}
+                      deleteIcon={
+                        <CloseIcon 
+                          onMouseDown={(event) => event.stopPropagation()}
+                        />
+                      }
+                    />
+                  ))}
+                </Box>
+              )}
+            >
+              {SCENARIO_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Status selection remains the same */}
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              multiple
+              value={statuses}
+              onChange={handleStatusChange}
+              label="Status"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={value}
+                      onDelete={() => handleChipDelete('status', value)}
+                      deleteIcon={
+                        <CloseIcon 
+                          onMouseDown={(event) => event.stopPropagation()}
+                        />
+                      }
+                    />
+                  ))}
+                </Box>
+              )}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Date range pickers remain the same */}
+        <Grid item xs={12}>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <DatePicker
+                  label="From"
+                  value={dateRange.from}
+                  onChange={(date) => date && handleDateChange('from', date)}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <DatePicker
+                  label="To"
+                  value={dateRange.to}
+                  onChange={(date) => date && handleDateChange('to', date)}
+                />
+              </Grid>
+            </Grid>
+          </LocalizationProvider>
+        </Grid>
+
+        {/* New search field configuration */}
+        <Grid item xs={12}>
+          <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <FormControl fullWidth>
+                <InputLabel>Search By</InputLabel>
+                <Select
+                  value={search.searchBy}
+                  onChange={handleSearchFieldChange}
+                  label="Search By"
+                >
+                  {SEARCH_FIELDS.map((field) => (
+                    <MenuItem key={field.id} value={field.id}>
+                      {field.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={8}>
+              <TextField
+                fullWidth
+                label={`Search ${SEARCH_FIELDS.find(f => f.id === search.searchBy)?.label}`}
+                value={search.searchText}
+                onChange={handleSearchTextChange}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+// Update the main component's filter logic
+const GiftsAndEntertainmentManager: React.FC = () => {
+  const [filters, setFilters] = useState<FilterState>({
+    scenarios: [],
+    statuses: [],
+    dateRange: { from: new Date('2024-07-28'), to: new Date('2025-01-28') },
+    search: {
+      searchBy: SEARCH_FIELDS[0].id,
+      searchText: '',
+    },
+  });
+  const [overviewData, setOverviewData] = useState<OverviewData[]>(initialOverviewData);
+  const [summaryData, setSummaryData] = useState<SummaryData[]>(initialSummaryData);
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    const filteredData = initialSummaryData.filter((row) => {
+      // Scenario and status filtering
+      const matchesScenario = newFilters.scenarios.length === 0 || 
+        newFilters.scenarios.includes(row.scenario);
+      const matchesStatus = newFilters.statuses.length === 0 || 
+        newFilters.statuses.includes(row.status);
+      
+      // Date range filtering
+      const rowDate = new Date(row.successDate);
+      const matchesDate = rowDate >= newFilters.dateRange.from && 
+        rowDate <= newFilters.dateRange.to;
+      
+      // Dynamic search field filtering
+      const searchField = SEARCH_FIELDS.find(f => f.id === newFilters.search.searchBy);
+      const searchValue = newFilters.search.searchText.toLowerCase();
+      const fieldValue = row[searchField?.field as keyof SummaryData]?.toString().toLowerCase();
+      const matchesSearch = !searchValue || fieldValue?.includes(searchValue);
+
+      return matchesScenario && matchesStatus && matchesDate && matchesSearch;
+    });
+
+    setSummaryData(filteredData);
+  };
+
+  // ... (rest of the component remains the same)
+
+  return (
+    <Box sx={{ p: 4 }}>
+      <Grid container spacing={4} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <SearchCriteria onFilterChange={handleFilterChange} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Overview 
+              data={overviewData} 
+              columns={overviewColumns}
+              onRowClick={(row: OverviewData) => handleOverviewClick(row)}
+            />
+          </Paper>
+        </Grid>
+      </Grid>
+      <Paper sx={{ p: 3 }}>
+        <Summary 
+          data={summaryData} 
+          columns={summaryColumns} 
+        />
+      </Paper>
+    </Box>
+  );
+};
+
+export default GiftsAndEntertainmentManager;
