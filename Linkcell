@@ -1,0 +1,2 @@
+
+// Modify the ClickableCell styled component const LinkCell = styled(TableCell)(({ theme }) => ({ padding: '16px', '& .cell-link': { color: theme.palette.primary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline', cursor: 'pointer', }, }, }));
