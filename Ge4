@@ -1,0 +1,330 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Grid,
+  TextField,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Chip,
+  TableSortLabel,
+  TablePagination,
+  SelectChangeEvent,
+  styled,
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { Close as CloseIcon } from '@mui/icons-material';
+
+// Styled Components
+const StyledTableHead = styled(TableHead)(({ theme }) => ({
+  '& .MuiTableCell-head': {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    fontWeight: 'bold',
+    '& .MuiTableSortLabel-root': {
+      color: theme.palette.primary.contrastText,
+      '&:hover': {
+        color: theme.palette.primary.contrastText,
+      },
+      '&.Mui-active': {
+        color: theme.palette.primary.contrastText,
+        '& .MuiTableSortLabel-icon': {
+          color: theme.palette.primary.contrastText,
+        },
+      },
+    },
+  },
+}));
+
+const ClickableCell = styled(TableCell)<{ clickable?: boolean }>(({ theme, clickable }) => ({
+  cursor: clickable ? 'pointer' : 'default',
+  '&:hover': clickable ? {
+    backgroundColor: theme.palette.action.hover,
+  } : {},
+}));
+
+// Enhanced Interfaces
+interface Column {
+  id: string;
+  label: string;
+  type: 'string' | 'number' | 'date';
+  formatting: 'default' | 'date';
+  clickable?: boolean;
+  onClick?: (value: any) => void;
+  width?: string;
+  align?: 'left' | 'center' | 'right';
+}
+
+// ... (keep other existing interfaces)
+
+// Enhanced Configuration
+const overviewColumns: Column[] = [
+  { 
+    id: 'label', 
+    label: 'Scenario', 
+    type: 'string', 
+    formatting: 'default',
+    clickable: true,
+    width: '70%',
+    align: 'left',
+  },
+  { 
+    id: 'count', 
+    label: 'Count', 
+    type: 'number', 
+    formatting: 'default',
+    width: '30%',
+    align: 'right',
+  },
+];
+
+const summaryColumns: Column[] = [
+  { 
+    id: 'scenario', 
+    label: 'Scenarios', 
+    type: 'string', 
+    formatting: 'default',
+    width: '25%',
+  },
+  { 
+    id: 'employeeName', 
+    label: 'Employee Name', 
+    type: 'string', 
+    formatting: 'default',
+    width: '20%',
+  },
+  { 
+    id: 'attendeeName', 
+    label: 'Attendee Name/Firm Name', 
+    type: 'string', 
+    formatting: 'default',
+    width: '20%',
+  },
+  { 
+    id: 'employee1', 
+    label: 'Employee1', 
+    type: 'string', 
+    formatting: 'default',
+    width: '10%',
+  },
+  { 
+    id: 'successDate', 
+    label: 'Success Date', 
+    type: 'date', 
+    formatting: 'date',
+    width: '15%',
+  },
+  { 
+    id: 'status', 
+    label: 'Status', 
+    type: 'string', 
+    formatting: 'default',
+    width: '10%',
+  },
+];
+
+// ... (keep existing sample data)
+
+const SearchCriteria: React.FC<SearchCriteriaProps> = ({ onFilterChange }) => {
+  const [scenarios, setScenarios] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date('2024-07-28'),
+    to: new Date('2025-01-28'),
+  });
+  const [searchText, setSearchText] = useState('');
+
+  const handleScenarioChange = (event: SelectChangeEvent<string[]>) => {
+    const selectedScenarios = typeof event.target.value === 'string' 
+      ? event.target.value.split(',') 
+      : event.target.value;
+    setScenarios(selectedScenarios);
+    onFilterChange({ scenarios: selectedScenarios, statuses, dateRange, searchText });
+  };
+
+  const handleStatusChange = (event: SelectChangeEvent<string[]>) => {
+    const selectedStatuses = typeof event.target.value === 'string' 
+      ? event.target.value.split(',') 
+      : event.target.value;
+    setStatuses(selectedStatuses);
+    onFilterChange({ scenarios, statuses: selectedStatuses, dateRange, searchText });
+  };
+
+  const handleChipDelete = (type: 'scenario' | 'status', valueToDelete: string) => {
+    if (type === 'scenario') {
+      const newScenarios = scenarios.filter(s => s !== valueToDelete);
+      setScenarios(newScenarios);
+      onFilterChange({ scenarios: newScenarios, statuses, dateRange, searchText });
+    } else {
+      const newStatuses = statuses.filter(s => s !== valueToDelete);
+      setStatuses(newStatuses);
+      onFilterChange({ scenarios, statuses: newStatuses, dateRange, searchText });
+    }
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Search Criteria
+      </Typography>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Scenarios</InputLabel>
+            <Select
+              multiple
+              value={scenarios}
+              onChange={handleScenarioChange}
+              label="Scenarios"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={value}
+                      onDelete={() => handleChipDelete('scenario', value)}
+                      deleteIcon={
+                        <CloseIcon 
+                          onMouseDown={(event) => event.stopPropagation()}
+                        />
+                      }
+                    />
+                  ))}
+                </Box>
+              )}
+            >
+              {SCENARIO_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        {/* ... (keep other form fields) */}
+      </Grid>
+    </Box>
+  );
+};
+
+const Overview: React.FC<OverviewProps> = ({ data, columns, onRowClick }) => {
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [orderBy, setOrderBy] = useState('label');
+
+  const handleSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const handleCellClick = (column: Column, value: any) => {
+    if (column.clickable && onRowClick) {
+      onRowClick(value);
+    }
+  };
+
+  const sortedData = [...data].sort((a, b) => {
+    const orderMultiplier = order === 'asc' ? 1 : -1;
+    return (a[orderBy as keyof OverviewData] > b[orderBy as keyof OverviewData] ? 1 : -1) * orderMultiplier;
+  });
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Overview</Typography>
+        <Button onClick={() => {/* export logic */}} variant="contained">
+          Export to PDF
+        </Button>
+      </Box>
+      <TableContainer component={Paper}>
+        <Table>
+          <StyledTableHead>
+            <TableRow>
+              {columns.map((col) => (
+                <TableCell 
+                  key={col.id}
+                  width={col.width}
+                  align={col.align}
+                >
+                  <TableSortLabel
+                    active={orderBy === col.id}
+                    direction={orderBy === col.id ? order : 'asc'}
+                    onClick={() => handleSort(col.id)}
+                  >
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </StyledTableHead>
+          <TableBody>
+            {sortedData.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((col) => (
+                  <ClickableCell
+                    key={col.id}
+                    clickable={col.clickable}
+                    align={col.align}
+                    onClick={() => handleCellClick(col, row)}
+                  >
+                    {row[col.id as keyof OverviewData]}
+                  </ClickableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+};
+
+// ... (keep Summary component implementation)
+
+const GiftsAndEntertainmentManager: React.FC = () => {
+  // ... (keep existing state and handlers)
+
+  return (
+    <Box sx={{ p: 4 }}>
+      <Grid container spacing={4} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <SearchCriteria onFilterChange={handleFilterChange} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Overview 
+              data={overviewData} 
+              columns={overviewColumns}
+              onRowClick={(row: OverviewData) => handleOverviewClick(row)}
+            />
+          </Paper>
+        </Grid>
+      </Grid>
+      <Paper sx={{ p: 3 }}>
+        <Summary 
+          data={summaryData} 
+          columns={summaryColumns} 
+        />
+      </Paper>
+    </Box>
+  );
+};
+
+export default GiftsAndEntertainmentManager;
