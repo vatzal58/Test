@@ -1,0 +1,81 @@
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { Menu, MenuItem, IconButton } from '@mui/material';
+
+const NAV_LINKS = [
+  { label: 'Overview', href: '#overview' },
+  { label: 'Filters', href: '#filters' },
+  { label: 'Summary', href: '#summary' },
+  { label: 'Reports', href: '#reports' }, // Add more as needed
+];
+
+const GiftsAndEntertainmentManager: React.FC = () => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  return (
+    <Box sx={{ p: 4 }}>
+      {/* Header Section */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h5" fontWeight="bold">
+          Gift & Entertainment Dashboard
+        </Typography>
+
+        {/* Hoverable Menu on the Right */}
+        <Box
+          sx={{ position: 'relative' }}
+          onMouseEnter={handleMenuOpen}
+          onMouseLeave={handleMenuClose}
+        >
+          <IconButton>
+            <MoreVertIcon />
+          </IconButton>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            sx={{
+              mt: 1,
+              '& .MuiPaper-root': { borderRadius: 2, minWidth: 150 }, // Styling
+            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            {NAV_LINKS.map((link) => (
+              <MenuItem key={link.label} component="a" href={link.href} onClick={handleMenuClose}>
+                {link.label}
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
+      </Box>
+
+      {/* Main Content */}
+      <Grid container spacing={4} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={6}>
+          <Paper id="filters" sx={{ p: 3, height: '100%' }}>
+            <SearchCriteria onFilterChange={handleFilterChange} onApplyFilter={applyFilter} onResetFilter={resetFilter} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper id="overview" sx={{ p: 3, height: '100%' }}>
+            <Overview data={overviewData} columns={overviewColumns} onRowClick={(row) => handleOverviewClick(row)} />
+          </Paper>
+        </Grid>
+      </Grid>
+      <Paper id="summary" sx={{ p: 3 }}>
+        <Summary data={summaryData} columns={summaryColumns} />
+      </Paper>
+    </Box>
+  );
+};
+
+export default GiftsAndEntertainmentManager;
