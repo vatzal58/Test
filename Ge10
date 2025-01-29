@@ -1,0 +1,95 @@
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+
+const GiftsAndEntertainmentManager: React.FC = () => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [open, setOpen] = useState(false);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+    setOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setOpen(false);
+  };
+
+  const NAV_LINKS = [
+    { label: 'Link 1', href: '#link1' },
+    { label: 'Link 2', href: '#link2' },
+    { label: 'Link 3', href: '#link3' },
+  ];
+
+  return (
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header Section */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          bgcolor: 'primary.main',
+          color: 'white',
+          borderRadius: 2,
+          flexShrink: 0, // Prevents header from taking space from main sections
+        }}
+      >
+        <Typography variant="h5" fontWeight="bold">
+          Gift & Entertainment Dashboard
+        </Typography>
+
+        {/* Hoverable Menu on the Right */}
+        <Box
+          sx={{ position: 'relative' }}
+          onMouseEnter={handleMenuOpen}
+          onMouseLeave={handleMenuClose}
+        >
+          <IconButton sx={{ color: 'white' }}>
+            <ArrowDropDownIcon />
+          </IconButton>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            sx={{
+              mt: 1,
+              '& .MuiPaper-root': { borderRadius: 2, minWidth: 150 },
+            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            {NAV_LINKS.map((link) => (
+              <MenuItem key={link.label} component="a" href={link.href} onClick={handleMenuClose}>
+                {link.label}
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
+      </Box>
+
+      {/* Main Content: 50% Search/Overview + 50% Summary */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Top Section: Search Criteria & Overview (50%) */}
+        <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2 }}>
+          <Paper sx={{ flex: 3, p: 3 }}> {/* 30% width */}
+            <SearchCriteria onFilterChange={handleFilterChange} onApplyFilter={applyFilter} onResetFilter={resetFilter} />
+          </Paper>
+          <Paper sx={{ flex: 7, p: 3 }}> {/* 70% width */}
+            <Overview data={overviewData} columns={overviewColumns} onRowClick={(row) => handleOverviewClick(row)} />
+          </Paper>
+        </Box>
+
+        {/* Bottom Section: Summary (50%) */}
+        <Box sx={{ flex: 1, p: 2 }}>
+          <Paper sx={{ height: '100%', p: 3 }}>
+            <Summary data={summaryData} columns={summaryColumns} />
+          </Paper>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default GiftsAndEntertainmentManager;
