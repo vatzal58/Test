@@ -1,0 +1,88 @@
+interface SearchCriteriaProps {
+  onFilterChange: (filters: FilterState) => void;
+  onApplyFilter: () => void;
+  onResetFilter: () => void;
+}
+
+const SearchCriteria: React.FC<SearchCriteriaProps> = ({ onFilterChange, onApplyFilter, onResetFilter }) => {
+  const [scenarios, setScenarios] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date('2024-07-28'),
+    to: new Date('2025-01-28'),
+  });
+  const [search, setSearch] = useState<SearchState>({
+    searchBy: SEARCH_FIELDS[0].id,
+    searchText: '',
+  });
+
+  const handleSearchFieldChange = (event: SelectChangeEvent<string>) => {
+    setSearch({ ...search, searchBy: event.target.value });
+  };
+
+  const handleSearchTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch({ ...search, searchText: event.target.value });
+  };
+
+  const handleApplyFilter = () => {
+    onFilterChange({ scenarios, statuses, dateRange, search });
+    onApplyFilter();
+  };
+
+  const handleResetFilter = () => {
+    setScenarios([]);
+    setStatuses([]);
+    setDateRange({ from: new Date('2024-07-28'), to: new Date('2025-01-28') });
+    setSearch({ searchBy: SEARCH_FIELDS[0].id, searchText: '' });
+    onResetFilter();
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Search Criteria
+      </Typography>
+      <Grid container spacing={3}>
+        {/* Scenarios and Status selections remain the same */}
+        
+        {/* Date range pickers remain the same */}
+        
+        {/* Search Field */}
+        <Grid item xs={12}>
+          <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <FormControl fullWidth>
+                <InputLabel>Search By</InputLabel>
+                <Select value={search.searchBy} onChange={handleSearchFieldChange} label="Search By">
+                  {SEARCH_FIELDS.map((field) => (
+                    <MenuItem key={field.id} value={field.id}>
+                      {field.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={8}>
+              <TextField
+                fullWidth
+                label={`Search ${SEARCH_FIELDS.find(f => f.id === search.searchBy)?.label}`}
+                value={search.searchText}
+                onChange={handleSearchTextChange}
+              />
+            </Grid>
+          </Grid>
+        </Grid>
+
+        {/* Buttons for Apply and Reset */}
+        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+          <Button variant="contained" color="primary" onClick={handleApplyFilter}>
+            Apply Filter
+          </Button>
+          <Button variant="outlined" color="secondary" onClick={handleResetFilter}>
+            Reset
+          </Button>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
