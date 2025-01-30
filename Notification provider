@@ -1,0 +1,207 @@
+// App.tsx
+import React from 'react';
+import { NotificationProvider } from './context/NotificationContext';
+import UserDashboard from './components/UserDashboard';
+import { createTheme, ThemeProvider } from '@mui/material';
+
+const theme = createTheme(); // You can customize the theme here
+
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <NotificationProvider>
+        <UserDashboard />
+      </NotificationProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;
+
+// components/UserDashboard.tsx
+import React, { useState } from 'react';
+import { useNotification } from '../context/NotificationContext';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  Typography,
+  TextField
+} from '@mui/material';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const UserDashboard: React.FC = () => {
+  const {
+    showNotification,
+    showAlertDialog,
+    showConfirmDialog
+  } = useNotification();
+
+  const [users, setUsers] = useState<User[]>([
+    { id: 1, name: 'John Doe', email: 'john@example.com' },
+    { id: 2, name: 'Jane Smith', email: 'jane@example.com' }
+  ]);
+
+  const [newUser, setNewUser] = useState({ name: '', email: '' });
+
+  // Example: Adding a new user
+  const handleAddUser = () => {
+    if (!newUser.name || !newUser.email) {
+      showNotification('Please fill in all fields', 'error');
+      return;
+    }
+
+    const user: User = {
+      id: users.length + 1,
+      name: newUser.name,
+      email: newUser.email
+    };
+
+    setUsers([...users, user]);
+    setNewUser({ name: '', email: '' });
+    showNotification('User added successfully!', 'success', 'top-right', 3000);
+  };
+
+  // Example: Deleting a user with confirmation
+  const handleDeleteUser = (user: User) => {
+    showConfirmDialog(
+      'Delete User',
+      `Are you sure you want to delete ${user.name}?`,
+      () => {
+        setUsers(users.filter(u => u.id !== user.id));
+        showNotification('User deleted successfully!', 'success');
+      },
+      () => {
+        showNotification('Delete operation cancelled', 'info');
+      },
+      'Delete',
+      'Cancel'
+    );
+  };
+
+  // Example: Viewing user details
+  const handleViewUser = (user: User) => {
+    showAlertDialog(
+      'User Details',
+      `Name: ${user.name}\nEmail: ${user.email}\nID: ${user.id}`
+    );
+  };
+
+  // Example: Demonstrating different notification types
+  const showNotificationDemo = () => {
+    const notifications = [
+      { message: 'Success message', severity: 'success' },
+      { message: 'Error message', severity: 'error' },
+      { message: 'Warning message', severity: 'warning' },
+      { message: 'Info message', severity: 'info' }
+    ];
+
+    notifications.forEach((notif, index) => {
+      setTimeout(() => {
+        showNotification(
+          notif.message,
+          notif.severity as any,
+          'top-right',
+          2000
+        );
+      }, index * 2500);
+    });
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        User Management Dashboard
+      </Typography>
+
+      {/* Demo Controls */}
+      <Box sx={{ mb: 4 }}>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={showNotificationDemo}
+          sx={{ mr: 2 }}
+        >
+          Demo Notifications
+        </Button>
+      </Box>
+
+      {/* Add New User Form */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Add New User
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={5}>
+              <TextField
+                fullWidth
+                label="Name"
+                value={newUser.name}
+                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} sm={5}>
+              <TextField
+                fullWidth
+                label="Email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                onClick={handleAddUser}
+                sx={{ height: '100%' }}
+              >
+                Add User
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* User List */}
+      <Grid container spacing={2}>
+        {users.map(user => (
+          <Grid item xs={12} sm={6} md={4} key={user.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6">{user.name}</Typography>
+                <Typography color="textSecondary">{user.email}</Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    size="small"
+                    onClick={() => handleViewUser(user)}
+                    sx={{ mr: 1 }}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => handleDeleteUser(user)}
+                  >
+                    Delete
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+};
+
+export default UserDashboard;
