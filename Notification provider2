@@ -1,0 +1,214 @@
+// types/notification.ts
+export type NotificationPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+export type NotificationSeverity = 'success' | 'error' | 'warning' | 'info';
+
+export interface NotificationState {
+  message: string;
+  open: boolean;
+  severity: NotificationSeverity;
+  position: NotificationPosition;
+  autoHideDuration?: number;
+}
+
+export interface AlertDialogState {
+  title: string;
+  message: string;
+  open: boolean;
+}
+
+export interface ConfirmationDialogState extends AlertDialogState {
+  onConfirm: () => void;
+  onCancel?: () => void;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+export interface NotificationContextType {
+  notification: NotificationState;
+  alertDialog: AlertDialogState;
+  confirmDialog: ConfirmationDialogState;
+  showNotification: (message: string, severity?: NotificationSeverity, position?: NotificationPosition, duration?: number) => void;
+  hideNotification: () => void;
+  showAlertDialog: (title: string, message: string) => void;
+  hideAlertDialog: () => void;
+  showConfirmDialog: (title: string, message: string, onConfirm: () => void, onCancel?: () => void, confirmText?: string, cancelText?: string) => void;
+  hideConfirmDialog: () => void;
+}
+
+// context/NotificationContext.tsx
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+
+const defaultNotificationState: NotificationState = {
+  message: '',
+  open: false,
+  severity: 'info',
+  position: 'top-right',
+  autoHideDuration: 6000,
+};
+
+const defaultAlertDialogState: AlertDialogState = {
+  title: '',
+  message: '',
+  open: false,
+};
+
+const defaultConfirmDialogState: ConfirmationDialogState = {
+  ...defaultAlertDialogState,
+  onConfirm: () => {},
+  onCancel: () => {},
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+};
+
+export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [notification, setNotification] = useState<NotificationState>(defaultNotificationState);
+  const [alertDialog, setAlertDialog] = useState<AlertDialogState>(defaultAlertDialogState);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmationDialogState>(defaultConfirmDialogState);
+
+  const showNotification = (
+    message: string,
+    severity: NotificationSeverity = 'info',
+    position: NotificationPosition = 'top-right',
+    duration: number = 6000
+  ) => {
+    setNotification({
+      message,
+      severity,
+      position,
+      open: true,
+      autoHideDuration: duration,
+    });
+  };
+
+  const hideNotification = () => {
+    setNotification((prev) => ({ ...prev, open: false }));
+  };
+
+  const showAlertDialog = (title: string, message: string) => {
+    setAlertDialog({
+      title,
+      message,
+      open: true,
+    });
+  };
+
+  const hideAlertDialog = () => {
+    setAlertDialog((prev) => ({ ...prev, open: false }));
+  };
+
+  const showConfirmDialog = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    confirmText: string = 'Confirm',
+    cancelText: string = 'Cancel'
+  ) => {
+    setConfirmDialog({
+      title,
+      message,
+      open: true,
+      onConfirm,
+      onCancel,
+      confirmText,
+      cancelText,
+    });
+  };
+
+  const hideConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, open: false }));
+  };
+
+  const getNotificationAnchor = (position: NotificationPosition): { vertical: 'top' | 'bottom'; horizontal: 'left' | 'right' | 'center' } => {
+    const [vertical, horizontal] = position.split('-') as ['top' | 'bottom', 'left' | 'right' | 'center'];
+    return { vertical, horizontal };
+  };
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        notification,
+        alertDialog,
+        confirmDialog,
+        showNotification,
+        hideNotification,
+        showAlertDialog,
+        hideAlertDialog,
+        showConfirmDialog,
+        hideConfirmDialog,
+      }}
+    >
+      {children}
+      
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={notification.autoHideDuration}
+        onClose={hideNotification}
+        anchorOrigin={getNotificationAnchor(notification.position)}
+      >
+        <Alert onClose={hideNotification} severity={notification.severity} sx={{ width: '100%' }}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Alert Dialog */}
+      <Dialog open={alertDialog.open} onClose={hideAlertDialog}>
+        <DialogTitle>{alertDialog.title}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{alertDialog.message}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={hideAlertDialog} color="primary">
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onClose={() => confirmDialog.onCancel?.()}>
+        <DialogTitle>{confirmDialog.title}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{confirmDialog.message}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            confirmDialog.onCancel?.();
+            hideConfirmDialog();
+          }} color="primary">
+            {confirmDialog.cancelText}
+          </Button>
+          <Button
+            onClick={() => {
+              confirmDialog.onConfirm();
+              hideConfirmDialog();
+            }}
+            color="primary"
+            variant="contained"
+          >
+            {confirmDialog.confirmText}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </NotificationContext.Provider>
+  );
+};
+
+// Hook for using the notification context
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (context === undefined) {
+    throw new Error('useNotification must be used within a NotificationProvider');
+  }
+  return context;
+};
