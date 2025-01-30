@@ -1,0 +1,166 @@
+// context/NotificationContext.tsx
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import { styled } from '@mui/material/styles';
+import Paper from '@mui/material/Paper';
+
+// Styled components for enhanced dialog appearance
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+  '& .MuiDialog-paper': {
+    borderRadius: '16px',
+    minWidth: '400px',
+    minHeight: '200px',
+    padding: theme.spacing(2),
+    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+  },
+}));
+
+const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
+  padding: theme.spacing(2),
+  '& .MuiTypography-root': {
+    fontSize: '1.5rem',
+    fontWeight: 600,
+  },
+}));
+
+const StyledDialogContent = styled(DialogContent)(({ theme }) => ({
+  padding: theme.spacing(2),
+  minHeight: '80px',
+  '& .MuiDialogContentText-root': {
+    fontSize: '1rem',
+    color: theme.palette.text.secondary,
+  },
+}));
+
+const StyledDialogActions = styled(DialogActions)(({ theme }) => ({
+  padding: theme.spacing(2),
+  '& .MuiButton-root': {
+    borderRadius: '8px',
+    textTransform: 'none',
+    fontWeight: 500,
+    padding: '8px 24px',
+  },
+}));
+
+// ... (keep all the types and interfaces from the previous version)
+
+export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // ... (keep all the state and handler functions from the previous version)
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        notification,
+        alertDialog,
+        confirmDialog,
+        showNotification,
+        hideNotification,
+        showAlertDialog,
+        hideAlertDialog,
+        showConfirmDialog,
+        hideConfirmDialog,
+      }}
+    >
+      {children}
+      
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={notification.autoHideDuration}
+        onClose={hideNotification}
+        anchorOrigin={getNotificationAnchor(notification.position)}
+      >
+        <Alert 
+          onClose={hideNotification} 
+          severity={notification.severity} 
+          sx={{ 
+            width: '100%',
+            borderRadius: '8px',
+            '& .MuiAlert-message': {
+              fontSize: '0.95rem',
+            },
+          }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Alert Dialog */}
+      <StyledDialog
+        open={alertDialog.open}
+        onClose={hideAlertDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <StyledDialogTitle>{alertDialog.title}</StyledDialogTitle>
+        <StyledDialogContent>
+          <DialogContentText>{alertDialog.message}</DialogContentText>
+        </StyledDialogContent>
+        <StyledDialogActions>
+          <Button 
+            onClick={hideAlertDialog} 
+            color="primary"
+            variant="contained"
+          >
+            OK
+          </Button>
+        </StyledDialogActions>
+      </StyledDialog>
+
+      {/* Confirmation Dialog */}
+      <StyledDialog
+        open={confirmDialog.open}
+        onClose={() => confirmDialog.onCancel?.()}
+        maxWidth="sm"
+        fullWidth
+      >
+        <StyledDialogTitle>{confirmDialog.title}</StyledDialogTitle>
+        <StyledDialogContent>
+          <DialogContentText>{confirmDialog.message}</DialogContentText>
+        </StyledDialogContent>
+        <StyledDialogActions>
+          <Button 
+            onClick={() => {
+              confirmDialog.onCancel?.();
+              hideConfirmDialog();
+            }} 
+            color="primary"
+            variant="outlined"
+            sx={{
+              mr: 1,
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            {confirmDialog.cancelText}
+          </Button>
+          <Button
+            onClick={() => {
+              confirmDialog.onConfirm();
+              hideConfirmDialog();
+            }}
+            color="primary"
+            variant="contained"
+            sx={{
+              '&:hover': {
+                backgroundColor: 'primary.dark',
+              },
+            }}
+          >
+            {confirmDialog.confirmText}
+          </Button>
+        </StyledDialogActions>
+      </StyledDialog>
+    </NotificationContext.Provider>
+  );
+};
+
+// ... (keep the useNotification hook from the previous version)
