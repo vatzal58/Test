@@ -1,0 +1,144 @@
+// components/Header.tsx
+import React from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  styled,
+} from '@mui/material';
+import {
+  NavigateBefore,
+  NavigateNext,
+  Close,
+} from '@mui/icons-material';
+
+const HeaderContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.dark,
+  color: theme.palette.primary.contrastText,
+  padding: theme.spacing(2),
+  display: 'grid',
+  gridTemplateColumns: '1fr auto 1fr', // Three-column layout
+  alignItems: 'center',
+  gap: theme.spacing(2),
+}));
+
+const TitleSection = styled(Box)({
+  justifySelf: 'start',
+});
+
+const NavigationSection = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  justifySelf: 'center',
+});
+
+const ActionsSection = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  justifySelf: 'end',
+});
+
+interface HeaderProps {
+  title: string;
+  onClose: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  showPrevious?: boolean;
+  showNext?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  title,
+  onClose,
+  onPrevious,
+  onNext,
+  showPrevious = true,
+  showNext = true,
+}) => (
+  <HeaderContainer>
+    <TitleSection>
+      <Typography variant="h6">{title}</Typography>
+    </TitleSection>
+    
+    <NavigationSection>
+      {showPrevious && (
+        <>
+          <IconButton 
+            color="inherit" 
+            size="small" 
+            onClick={onPrevious}
+            aria-label="Previous alert"
+          >
+            <NavigateBefore />
+          </IconButton>
+          <Typography variant="body2">Previous Alert</Typography>
+        </>
+      )}
+      
+      {showNext && (
+        <>
+          <IconButton 
+            color="inherit" 
+            size="small" 
+            onClick={onNext}
+            aria-label="Next alert"
+          >
+            <NavigateNext />
+          </IconButton>
+          <Typography variant="body2">Next Alert</Typography>
+        </>
+      )}
+    </NavigationSection>
+
+    <ActionsSection>
+      <IconButton 
+        color="inherit" 
+        onClick={onClose}
+        aria-label="Close modal"
+      >
+        <Close />
+      </IconButton>
+    </ActionsSection>
+  </HeaderContainer>
+);
+
+// Usage in RiskManagementModal.tsx
+interface RiskManagementModalProps {
+  open: boolean;
+  onClose: () => void;
+  data: RiskManagementData;
+}
+
+export const RiskManagementModal: React.FC<RiskManagementModalProps> = ({
+  open,
+  onClose,
+  data,
+}) => {
+  const handlePreviousAlert = () => {
+    console.log('Navigate to previous alert');
+    // Add your previous alert logic here
+  };
+
+  const handleNextAlert = () => {
+    console.log('Navigate to next alert');
+    // Add your next alert logic here
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalContainer>
+        <Header
+          title="Consolidated Risk Management System"
+          onClose={onClose}
+          onPrevious={handlePreviousAlert}
+          onNext={handleNextAlert}
+          // Optionally control visibility of navigation buttons
+          showPrevious={data.hasPreviousAlert}
+          showNext={data.hasNextAlert}
+        />
+        {/* Rest of the modal content */}
+      </ModalContainer>
+    </Modal>
+  );
+};
