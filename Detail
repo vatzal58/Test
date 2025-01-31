@@ -1,0 +1,406 @@
+// types/index.ts
+export interface ClientInfo {
+  name: string;
+  accountNumber: string;
+  age: number;
+  processDate: string;
+  dueDate: string;
+  status: string;
+}
+
+export interface AccountDetails {
+  accountNumber: string;
+  openDate: string;
+  title: string;
+  accountValue: number;
+}
+
+export interface ClientAdvisorDetails {
+  name: string;
+  accountCount: number;
+  dob: string;
+  age: number;
+  maritalStatus: string;
+  dependents: number;
+  occupation: string;
+  employmentStatus: string;
+  citizenship: string;
+}
+
+export interface HeaderAction {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}
+
+export interface FooterAction {
+  label: string;
+  variant: 'text' | 'outlined' | 'contained';
+  onClick: () => void;
+}
+
+// components/Header.tsx
+import React from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  styled,
+} from '@mui/material';
+import {
+  NavigateBefore,
+  NavigateNext,
+  Close,
+} from '@mui/icons-material';
+
+const HeaderContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.dark,
+  color: theme.palette.primary.contrastText,
+  padding: theme.spacing(2),
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+}));
+
+interface HeaderProps {
+  title: string;
+  actions: HeaderAction[];
+  onClose: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ title, actions, onClose }) => (
+  <HeaderContainer>
+    <Typography variant="h6">{title}</Typography>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {actions.map((action, index) => (
+        <React.Fragment key={index}>
+          <IconButton color="inherit" size="small" onClick={action.onClick}>
+            {action.icon === 'prev' && <NavigateBefore />}
+            {action.icon === 'next' && <NavigateNext />}
+          </IconButton>
+          {action.label && <Typography>{action.label}</Typography>}
+        </React.Fragment>
+      ))}
+      <IconButton color="inherit" onClick={onClose}>
+        <Close />
+      </IconButton>
+    </Box>
+  </HeaderContainer>
+);
+
+// components/AlertHeader.tsx
+import React from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  styled,
+} from '@mui/material';
+
+const AlertHeaderContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+interface AlertHeaderProps {
+  alertType: string;
+  clientInfo: ClientInfo;
+}
+
+export const AlertHeader: React.FC<AlertHeaderProps> = ({ alertType, clientInfo }) => (
+  <AlertHeaderContainer>
+    <Typography variant="h6" color="primary">{alertType}</Typography>
+    <Grid container spacing={2} sx={{ mt: 2 }}>
+      {Object.entries(clientInfo).map(([key, value]) => (
+        <Grid item xs={2} key={key}>
+          <Typography variant="caption" display="block">
+            {key.replace(/([A-Z])/g, ' $1').trim()}
+          </Typography>
+          <Typography>{value}</Typography>
+        </Grid>
+      ))}
+    </Grid>
+  </AlertHeaderContainer>
+);
+
+// components/AccountDetailsTable.tsx
+import React from 'react';
+import {
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+} from '@mui/material';
+
+interface AccountDetailsTableProps {
+  accounts: AccountDetails[];
+}
+
+export const AccountDetailsTable: React.FC<AccountDetailsTableProps> = ({ accounts }) => (
+  <TableContainer component={Paper}>
+    <Table size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell>Account #</TableCell>
+          <TableCell>Open Date</TableCell>
+          <TableCell>Title & Address</TableCell>
+          <TableCell align="right">Account Value</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {accounts.map((account) => (
+          <TableRow key={account.accountNumber}>
+            <TableCell>{account.accountNumber}</TableCell>
+            <TableCell>{account.openDate}</TableCell>
+            <TableCell>{account.title}</TableCell>
+            <TableCell align="right">
+              ${account.accountValue.toLocaleString()}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+);
+
+// components/CommentSection.tsx
+import React from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  styled,
+} from '@mui/material';
+import { AttachFile } from '@mui/icons-material';
+
+const CommentContainer = styled(Box)(({ theme }) => ({
+  marginTop: theme.spacing(4),
+}));
+
+interface CommentAction {
+  label: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
+}
+
+interface CommentSectionProps {
+  actions: CommentAction[];
+  onCommentChange: (comment: string) => void;
+}
+
+export const CommentSection: React.FC<CommentSectionProps> = ({ actions, onCommentChange }) => (
+  <CommentContainer>
+    <Typography variant="h6" sx={{ mb: 2 }}>Comment History</Typography>
+    <TextField
+      multiline
+      rows={4}
+      fullWidth
+      placeholder="Enter your comments here"
+      variant="outlined"
+      sx={{ mb: 2 }}
+      onChange={(e) => onCommentChange(e.target.value)}
+    />
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      {actions.map((action, index) => (
+        <Button
+          key={index}
+          variant="outlined"
+          startIcon={action.icon}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </Button>
+      ))}
+    </Box>
+  </CommentContainer>
+);
+
+// components/RightSidebar.tsx
+import React from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  styled,
+} from '@mui/material';
+
+const SidebarContainer = styled(Box)(({ theme }) => ({
+  width: 320,
+  backgroundColor: theme.palette.grey[50],
+  padding: theme.spacing(2),
+  borderLeft: `1px solid ${theme.palette.divider}`,
+  overflow: 'auto',
+}));
+
+interface RightSidebarProps {
+  details: ClientAdvisorDetails;
+}
+
+export const RightSidebar: React.FC<RightSidebarProps> = ({ details }) => (
+  <SidebarContainer>
+    <Typography variant="h6" sx={{ mb: 2 }}>Client/Advisor Details</Typography>
+    <Grid container spacing={2}>
+      {Object.entries(details).map(([key, value]) => (
+        <Grid item xs={12} key={key}>
+          <Typography variant="caption" display="block">
+            {key.replace(/([A-Z])/g, ' $1').trim()}
+          </Typography>
+          <Typography>{value}</Typography>
+        </Grid>
+      ))}
+    </Grid>
+  </SidebarContainer>
+);
+
+// components/Footer.tsx
+import React from 'react';
+import {
+  Box,
+  Button,
+  styled,
+} from '@mui/material';
+
+const FooterContainer = styled(Box)(({ theme }) => ({
+  borderTop: `1px solid ${theme.palette.divider}`,
+  padding: theme.spacing(2),
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: theme.spacing(1),
+}));
+
+interface FooterProps {
+  actions: FooterAction[];
+}
+
+export const Footer: React.FC<FooterProps> = ({ actions }) => (
+  <FooterContainer>
+    {actions.map((action, index) => (
+      <Button
+        key={index}
+        variant={action.variant}
+        onClick={action.onClick}
+      >
+        {action.label}
+      </Button>
+    ))}
+  </FooterContainer>
+);
+
+// components/RiskManagementModal.tsx
+import React from 'react';
+import { Modal, Box, styled } from '@mui/material';
+import { Header } from './Header';
+import { AlertHeader } from './AlertHeader';
+import { AccountDetailsTable } from './AccountDetailsTable';
+import { CommentSection } from './CommentSection';
+import { RightSidebar } from './RightSidebar';
+import { Footer } from './Footer';
+import { AttachFile } from '@mui/icons-material';
+
+const ModalContainer = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: '90%',
+  maxWidth: '1200px',
+  height: '85vh',
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[24],
+  outline: 'none',
+}));
+
+const MainContent = styled(Box)(() => ({
+  display: 'flex',
+  height: 'calc(100% - 180px)',
+  overflow: 'hidden',
+}));
+
+const LeftContent = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  padding: theme.spacing(2),
+  overflow: 'auto',
+}));
+
+interface RiskManagementModalProps {theme.palette.divi8
+  onClose: () => void;
+}
+
+export const RiskManagementModal: React.FC<RiskManagementModalProps> = ({ open, onClose }) => {
+  // Sample data - in real app, this would come from props or API
+  const sampleData = {
+    headerActions: [
+      { icon: 'prev', label: 'Previous Alert', onClick: () => {} },
+      { icon: 'next', label: 'Next Alert', onClick: () => {} },
+    ],
+    clientInfo: {
+      name: 'Jeff Sciortino',
+      accountNumber: '29115652',
+      age: 55,
+      processDate: '01/29/2025',
+      dueDate: '02/20/2025',
+      status: 'Open',
+    },
+    accounts: [{
+      accountNumber: '29115652',
+      openDate: '11/22/2008',
+      title: 'JEFFREY SCIORTINO TTEE U/A DTD 01/29/2024',
+      accountValue: 2709499.38,
+    }],
+    commentActions: [
+      { label: 'Attach CDOL Document', icon: <AttachFile />, onClick: () => {} },
+      { label: 'Add Attachment', onClick: () => {} },
+      { label: 'Insert Pre-work', onClick: () => {} },
+    ],
+    clientAdvisorDetails: {
+      name: 'JEFF SCIORTINO',
+      accountCount: 9,
+      dob: '08/12/1969',
+      age: 55,
+      maritalStatus: 'S',
+      dependents: 0,
+      occupation: 'OWNER',
+      employmentStatus: 'BUSINESS OWNER',
+      citizenship: 'UNITED STATES OF AMERICA',
+    },
+    footerActions: [
+      { label: 'Save', variant: 'outlined', onClick: () => {} },
+      { label: 'Send to FA', variant: 'outlined', onClick: () => {} },
+      { label: 'Send to Sup Mgr', variant: 'outlined', onClick: () => {} },
+      { label: 'Complete', variant: 'contained', onClick: () => {} },
+    ],
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalContainer>
+        <Header
+          title="Consolidated Risk Management System"
+          actions={sampleData.headerActions}
+          onClose={onClose}
+        />
+        <AlertHeader
+          alertType="Trades Against Opinion"
+          clientInfo={sampleData.clientInfo}
+        />
+        <MainContent>
+          <LeftContent>
+            <AccountDetailsTable accounts={sampleData.accounts} />
+            <CommentSection
+              actions={sampleData.commentActions}
+              onCommentChange={(comment) => console.log('Comment:', comment)}
+            />
+          </LeftContent>
+          <RightSidebar details={sampleData.clientAdvisorDetails} />
+        </MainContent>
+        <Footer actions={sampleData.footerActions} />
+      </ModalContainer>
+    </Modal>
+  );
+};
+
+export default RiskManagementModal;
