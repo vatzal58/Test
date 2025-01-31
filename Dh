@@ -1,0 +1,115 @@
+import React, { useState } from 'react';
+import NestedSelectionModal from './NestedSelectionModal';
+import { Button } from '@mui/material';
+
+const App: React.FC = () => {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const sampleData = [
+    {
+      id: '1',
+      label: 'Level 1 - Item 1',
+      nextLevel: [
+        {
+          id: '1-1',
+          label: 'Level 2 - Item 1',
+          nextLevel: [
+            { id: '1-1-1', label: 'Level 3 - Item 1' },
+            { id: '1-1-2', label: 'Level 3 - Item 2' },
+          ],
+        },
+        { id: '1-2', label: 'Level 2 - Item 2' },
+      ],
+    },
+    {
+      id: '2',
+      label: 'Level 1 - Item 2',
+      nextLevel: [
+        { id: '2-1', label: 'Level 2 - Item 3' },
+        { id: '2-2', label: 'Level 2 - Item 4' },
+      ],
+    },
+  ];
+
+  return (
+    <div>
+      <Button variant="contained" onClick={() => setModalOpen(true)}>
+        Open Modal
+      </Button>
+      <NestedSelectionModal open={modalOpen} onClose={() => setModalOpen(false)} data={sampleData} />
+    </div>
+  );
+};
+
+export default App;
+
+import React, { useState } from 'react';
+import { Modal, Box, Button, Typography, Grid } from '@mui/material';
+
+interface LevelData {
+  id: string;
+  label: string;
+  nextLevel?: LevelData[];
+}
+
+interface NestedSelectionModalProps {
+  open: boolean;
+  onClose: () => void;
+  data: LevelData[];
+}
+
+const NestedSelectionModal: React.FC<NestedSelectionModalProps> = ({ open, onClose, data }) => {
+  const [selectedLevels, setSelectedLevels] = useState<LevelData[]>([]);
+
+  const handleSelect = (item: LevelData, levelIndex: number) => {
+    const newSelectedLevels = selectedLevels.slice(0, levelIndex);
+    newSelectedLevels[levelIndex] = item;
+    setSelectedLevels(newSelectedLevels);
+  };
+
+  const renderLevel = (levelData: LevelData[], levelIndex: number) => {
+    return (
+      <Grid item xs={3} key={levelIndex}>
+        <Typography variant="subtitle1">Level {levelIndex + 1}</Typography>
+        {levelData.map((item) => (
+          <Button
+            key={item.id}
+            variant={selectedLevels[levelIndex]?.id === item.id ? 'contained' : 'outlined'}
+            onClick={() => handleSelect(item, levelIndex)}
+            sx={{ display: 'block', my: 1 }}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </Grid>
+    );
+  };
+
+  const getCurrentLevelData = (levelIndex: number): LevelData[] => {
+    if (levelIndex === 0) return data;
+    const previousLevel = selectedLevels[levelIndex - 1];
+    return previousLevel?.nextLevel || [];
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, bgcolor: 'background.paper', boxShadow: 24, p: 4 }}>
+        <Typography variant="h6" component="h2">
+          Select Items
+        </Typography>
+        <Grid container spacing={2}>
+          {/* Render all levels dynamically */}
+          {selectedLevels.map((_, index) => renderLevel(getCurrentLevelData(index), index))}
+          {/* Render the next level if available */}
+          {getCurrentLevelData(selectedLevels.length).length > 0 &&
+            renderLevel(getCurrentLevelData(selectedLevels.length), selectedLevels.length)}
+        </Grid>
+        <Button onClick={onClose} sx={{ mt: 2 }}>
+          Close
+        </Button>
+      </Box>
+    </Modal>
+  );
+};
+
+export default NestedSelectionModal;
