@@ -305,3 +305,151 @@ const NestedSelectionModal: React.FC<NestedSelectionModalProps> = ({ open, onClo
 };
 
 export default NestedSelectionModal;
+
+
+import React, { useState } from 'react';
+import { Modal, Box, Button, Typography, Grid, TextField, List, ListItem, ListItemText } from '@mui/material';
+
+interface LevelData {
+  id: string;
+  label: string;
+  nextLevel?: LevelData[];
+}
+
+interface NestedSelectionModalProps {
+  open: boolean;
+  onClose: () => void;
+  data: LevelData[];
+}
+
+const NestedSelectionModal: React.FC<NestedSelectionModalProps> = ({ open, onClose, data }) => {
+  const [selectedLevels, setSelectedLevels] = useState<LevelData[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ item: LevelData; path: string }[]>([]);
+
+  const handleSelect = (item: LevelData, levelIndex: number) => {
+    const newSelectedLevels = selectedLevels.slice(0, levelIndex);
+    newSelectedLevels[levelIndex] = item;
+    setSelectedLevels(newSelectedLevels);
+    setSearchQuery(''); // Clear search query after selection
+    setSearchResults([]); // Clear search results
+  };
+
+  const getCurrentLevelData = (levelIndex: number): LevelData[] => {
+    if (levelIndex === 0) return data;
+    const previousLevel = selectedLevels[levelIndex - 1];
+    return previousLevel?.nextLevel || [];
+  };
+
+  const searchItems = (items: LevelData[], query: string, path: string): { item: LevelData; path: string }[] => {
+    if (!query) return [];
+    let results: { item: LevelData; path: string }[] = [];
+    items.forEach((item) => {
+      const currentPath = `${path} > ${item.label}`;
+      if (item.label.toLowerCase().includes(query.toLowerCase())) {
+        results.push({ item, path: currentPath });
+      }
+      if (item.nextLevel) {
+        results = results.concat(searchItems(item.nextLevel, query, currentPath));
+      }
+    });
+    return results;
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query) {
+      const results = searchItems(data, query, '');
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    return text.split(regex).map((part, index) =>
+      regex.test(part) ? <span key={index} style={{ backgroundColor: '#ffeb3b' }}>{part}</span> : part
+    );
+  };
+
+  const renderLevel = (levelData: LevelData[], levelIndex: number) => {
+    return (
+      <Grid item xs={3} key={levelIndex}>
+        <Typography variant="subtitle1">Level {levelIndex + 1}</Typography>
+        {levelData.map((item) => (
+          <Button
+            key={item.id}
+            variant={selectedLevels[levelIndex]?.id === item.id ? 'contained' : 'outlined'}
+            onClick={() => handleSelect(item, levelIndex)}
+            sx={{ display: 'block', my: 1, textAlign: 'left' }}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </Grid>
+    );
+  };
+
+  const handleSearchResultClick = (result: { item: LevelData; path: string }) => {
+    // Extract the hierarchy from the search result path
+    const labels = result.path.split(' > ').slice(1); // Remove the empty first element
+    const newSelectedLevels: LevelData[] = [];
+
+    let currentLevelData = data;
+    labels.forEach((label) => {
+      const foundItem = currentLevelData.find((item) => item.label === label);
+      if (foundItem) {
+        newSelectedLevels.push(foundItem);
+        currentLevelData = foundItem.nextLevel || [];
+      }
+    });
+
+    setSelectedLevels(newSelectedLevels);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, bgcolor: 'background.paper', boxShadow: 24, p: 4 }}>
+        <Typography variant="h6" component="h2">
+          Select Items
+        </Typography>
+        <TextField
+          fullWidth
+          placeholder="Search..."
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+        {searchResults.length > 0 ? (
+          <List>
+            {searchResults.map((result, index) => (
+              <ListItem button key={index} onClick={() => handleSearchResultClick(result)}>
+                <ListItemText
+                  primary={highlightMatch(result.item.label, searchQuery)}
+                  secondary={result.path}
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Grid container spacing={2}>
+            {/* Render all levels dynamically */}
+            {selectedLevels.map((_, index) => renderLevel(getCurrentLevelData(index), index))}
+            {/* Render the next level if available */}
+            {getCurrentLevelData(selectedLevels.length).length > 0 &&
+              renderLevel(getCurrentLevelData(selectedLevels.length), selectedLevels.length)}
+          </Grid>
+        )}
+        <Button onClick={onClose} sx={{ mt: 2 }}>
+          Close
+        </Button>
+      </Box>
+    </Modal>
+  );
+};
+
+export default NestedSelectionModal;
