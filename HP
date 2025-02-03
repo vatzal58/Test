@@ -1,0 +1,280 @@
+import React, { useState } from 'react';
+import {
+  Modal,
+  Box,
+  Typography,
+  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Button,
+  Divider,
+} from '@mui/material';
+import Grid from '@mui/material/Grid';
+import CloseIcon from '@mui/icons-material/Close';
+
+interface LevelData {
+  id: string;
+  label: string;
+  nextLevel?: LevelData[];
+}
+
+interface NestedSelectionModalProps {
+  open: boolean;
+  onClose: () => void;
+  data: LevelData[];
+}
+
+const NestedSelectionModal: React.FC<NestedSelectionModalProps> = ({ open, onClose, data }) => {
+  const [selectedLevels, setSelectedLevels] = useState<LevelData[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ item: LevelData; path: string }[]>([]);
+
+  const handleSelect = (item: LevelData, levelIndex: number) => {
+    const newSelectedLevels = selectedLevels.slice(0, levelIndex);
+    newSelectedLevels[levelIndex] = item;
+    setSelectedLevels(newSelectedLevels);
+    setSearchQuery(''); // Clear search query after selection
+    setSearchResults([]); // Clear search results
+  };
+
+  const getCurrentLevelData = (levelIndex: number): LevelData[] => {
+    if (levelIndex === 0) return data;
+    const previousLevel = selectedLevels[levelIndex - 1];
+    return previousLevel?.nextLevel || [];
+  };
+
+  const searchItems = (items: LevelData[], query: string, path: string): { item: LevelData; path: string }[] => {
+    if (!query) return [];
+    let results: { item: LevelData; path: string }[] = [];
+    items.forEach((item) => {
+      const currentPath = `${path} > ${item.label}`;
+      if (item.label.toLowerCase().includes(query.toLowerCase())) {
+        results.push({ item, path: currentPath });
+      }
+      if (item.nextLevel) {
+        results = results.concat(searchItems(item.nextLevel, query, currentPath));
+      }
+    });
+    return results;
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query) {
+      const results = searchItems(data, query, '');
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    return text.split(regex).map((part, index) =>
+      regex.test(part) ? <span key={index} style={{ backgroundColor: '#ffeb3b' }}>{part}</span> : part
+    );
+  };
+
+  const renderLevel = (levelData: LevelData[], levelIndex: number) => {
+    const isLastSelected = levelIndex === selectedLevels.length - 1;
+    return (
+      <Grid item xs={3} key={levelIndex}>
+        <Box sx={{ bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            Level {levelIndex + 1}
+          </Typography>
+        </Box>
+        <List>
+          {levelData.map((item) => (
+            <ListItem
+              key={item.id}
+              component="button"
+              onClick={() => handleSelect(item, levelIndex)}
+              sx={{
+                my: 0.5,
+                bgcolor: selectedLevels[levelIndex]?.id === item.id
+                  ? isLastSelected ? 'primary.light' : 'action.selected'
+                  : 'inherit',
+                border: 'none'
+              }}
+            >
+              <ListItemText primary={item.label} />
+            </ListItem>
+          ))}
+        </List>
+      </Grid>
+    );
+  };
+
+  const handleSearchResultClick = (result: { item: LevelData; path: string }) => {
+    // Extract the hierarchy from the search result path
+    const labels = result.path.split(' > ').slice(1); // Remove the empty first element
+    const newSelectedLevels: LevelData[] = [];
+
+    let currentLevelData = data;
+    labels.forEach((label) => {
+      const foundItem = currentLevelData.find((item) => item.label === label);
+      if (foundItem) {
+        newSelectedLevels.push(foundItem);
+        currentLevelData = foundItem.nextLevel || [];
+      }
+    });
+
+    setSelectedLevels(newSelectedLevels);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, bgcolor: 'background.paper', boxShadow: 24, borderRadius: 2 }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6" component="h2">
+            Hierarchy
+          </Typography>
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* Search Bar */}
+        <Box sx={{ p: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </Box>
+
+        {/* Content */}
+        <Box sx={{ p: 2 }}>
+          {searchResults.length > 0 ? (
+            <List>
+              {searchResults.map((result, index) => (
+                <ListItem component={"button"} key={index} onClick={() => handleSearchResultClick(result)}>
+                  <ListItemText
+                    primary={highlightMatch(result.item.label, searchQuery)}
+                    secondary={result.path}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Grid container spacing={2}>
+              {/* Render all levels dynamically */}
+              {selectedLevels.map((_, index) => renderLevel(getCurrentLevelData(index), index))}
+              {/* Render the next level if available */}
+              {getCurrentLevelData(selectedLevels.length).length > 0 &&
+                renderLevel(getCurrentLevelData(selectedLevels.length), selectedLevels.length)}
+            </Grid>
+          )}
+        </Box>
+
+        {/* Footer */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Button onClick={onClose} sx={{ mr: 1 }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={onClose}>
+            Apply Filter
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
+  );
+};
+
+export default NestedSelectionModal;
+
+
+import React, { useState } from 'react';
+import NestedSelectionModal from './components/NestedSelectionModal';
+import { Button } from '@mui/material';
+
+
+interface InputItem {
+  Code: string;
+  Group: string;
+  Level: number;
+  Name: string;
+  ParentCode: string | null;
+}
+
+interface NestedItem {
+  id: string;
+  label: string;
+  nextLevel: NestedItem[];
+}
+
+const App: React.FC = () => {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const transformData = (inputData: InputItem[]): NestedItem[] => {
+    // Create a map to store items by their Code
+    const itemMap = new Map<string, NestedItem>();
+
+    // Initialize the map with all items
+    inputData.forEach((item) => {
+      itemMap.set(item.Code, {
+        id: item.Code,
+        label: item.Name + '\n' + item.Code,
+        nextLevel: [],
+        item: item,  // Store the original InputItem
+      });
+    });
+
+    // Update NestedItem interface to include the original item
+    interface NestedItem {
+      id: string;
+      label: string;
+      nextLevel: NestedItem[];
+      item: InputItem;
+    }
+
+    // Build the hierarchy
+    const result: NestedItem[] = [];
+    inputData.forEach((item) => {
+      if (item.ParentCode === item.Code) {
+        // This is a top-level item
+        result.push(itemMap.get(item.Code)!);
+      } else if (item.ParentCode) {
+        // This is a child item, add it to its parent's nextLevel
+        const parent = itemMap.get(item.ParentCode);
+        if (parent) {
+          parent.nextLevel.push(itemMap.get(item.Code)!);
+        }
+      }
+    });
+
+    return result;
+  };
+
+  // Example usage
+  const inputData = [
+    { Code: 'A1', Group: 'Level 1', Level: 1, Name: 'Item 1', ParentCode: 'A1' },
+    { Code: 'A2', Group: 'Level 1', Level: 1, Name: 'Item 2', ParentCode: 'A1' },
+    { Code: 'B1', Group: 'Level 2', Level: 2, Name: 'Item 3', ParentCode: 'A1' },
+    { Code: 'B2', Group: 'Level 2', Level: 2, Name: 'Item 4', ParentCode: 'A1' },
+    { Code: 'B3', Group: 'Level 2', Level: 2, Name: 'Item 5', ParentCode: 'A2' },
+    { Code: 'C1', Group: 'Level 3', Level: 3, Name: 'Item 6', ParentCode: 'B1' },
+    { Code: 'C2', Group: 'Level 3', Level: 3, Name: 'Item 7', ParentCode: 'B2' },
+  ];
+
+  const outputData = transformData(inputData);
+
+  return (
+    <div>
+      <Button variant="contained" onClick={() => setModalOpen(true)}>
+        Open Modal
+      </Button>
+      <NestedSelectionModal open={modalOpen} onClose={() => setModalOpen(false)} data={outputData} />
+    </div>
+  );
+};
+
+export default App;
