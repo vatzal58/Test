@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const prettier = require('prettier');
-const ts = require('typescript');
 
 // Configuration
 const config = {
@@ -18,82 +17,42 @@ const config = {
 };
 
 function removeComments(sourceCode) {
-    // Create a source file
-    const sourceFile = ts.createSourceFile(
-        'temp.ts',
-        sourceCode,
-        ts.ScriptTarget.Latest,
-        true
-    );
-
-    // Transformer factory to remove comments
-    const transformerFactory = (context) => {
-        return (sourceFile) => {
-            const visitor = (node) => {
-                // Remove JSDoc comments and trailing comments
-                const newNode = ts.setEmitFlags(
-                    ts.getMutableClone(node),
-                    ts.EmitFlags.NoComments | ts.EmitFlags.NoTrailingComments
-                );
-                return ts.visitEachChild(newNode, visitor, context);
-            };
-            return ts.visitNode(sourceFile, visitor);
-        };
-    };
-
-    // Create printer
-    const printer = ts.createPrinter({
-        removeComments: true,
-        newLine: ts.NewLineKind.LineFeed
-    });
-
-    // Transform and print
-    const result = ts.transform(sourceFile, [transformerFactory]);
-    const transformedSourceFile = result.transformed[0];
+    // Remove single-line comments
+    sourceCode = sourceCode.replace(/\/\/.*/g, '');
     
-    return printer.printFile(transformedSourceFile);
+    // Remove multi-line comments
+    sourceCode = sourceCode.replace(/\/\*[\s\S]*?\*\//g, '');
+    
+    // Remove JSDoc comments
+    sourceCode = sourceCode.replace(/\/\*\*[\s\S]*?\*\//g, '');
+    
+    return sourceCode;
 }
 
 function removeConsoleLog(sourceCode) {
-    // Remove console.log statements
-    const consoleLogRegex = /console\.log\((.*?)\);?\n?/g;
-    return sourceCode.replace(consoleLogRegex, '');
+    return sourceCode.replace(/console\.log\([^)]*\);?/g, '');
 }
 
-async function formatCode(sourceCode) {
-    try {
-        const formattedCode = await prettier.format(sourceCode, config.prettierConfig);
-        return formattedCode;
-    } catch (error) {
-        console.error('Error formatting code:', error);
-        return sourceCode;
-    }
-}
-
-function processFile(filePath) {
+async function processFile(filePath) {
     try {
         // Read the file
-        const sourceCode = fs.readFileSync(filePath, 'utf8');
+        let sourceCode = fs.readFileSync(filePath, 'utf8');
         
-        // Process the code
-        let processedCode = sourceCode;
-        
-        try {
-            // Remove comments
-            processedCode = removeComments(processedCode);
-        } catch (commentError) {
-            console.warn(`Warning: Could not remove comments from ${filePath}:`, commentError);
-        }
+        // Remove comments first
+        sourceCode = removeComments(sourceCode);
         
         // Remove console.log statements
-        processedCode = removeConsoleLog(processedCode);
+        sourceCode = removeConsoleLog(sourceCode);
         
-        // Format the code
-        formatCode(processedCode).then(formattedCode => {
-            // Write the processed code back to the file
-            fs.writeFileSync(filePath, formattedCode);
-            console.log(`✓ Processed: ${filePath}`);
+        // Format code using prettier
+        const formattedCode = await prettier.format(sourceCode, {
+            ...config.prettierConfig,
+            filepath: filePath
         });
+        
+        // Write the processed code back to the file
+        fs.writeFileSync(filePath, formattedCode);
+        console.log(`✓ Processed: ${filePath}`);
     } catch (error) {
         console.error(`Error processing ${filePath}:`, error);
     }
