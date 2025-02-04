@@ -1,15 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const prettier = require('prettier');
-const typescript = require('typescript');
+const ts = require('typescript');
 
 // Configuration
 const config = {
-    // File extensions to process
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
-    // Directories to exclude
     excludeDirs: ['node_modules', 'build', 'dist', '.git'],
-    // Prettier configuration
     prettierConfig: {
         semi: true,
         trailingComma: 'es5',
@@ -20,27 +17,51 @@ const config = {
     }
 };
 
-function removeConsoleLog(sourceCode) {
-    // Remove only console.log statements
-    const consoleLogRegex = /console\.log\((.*?)\);?/g;
-    return sourceCode.replace(consoleLogRegex, '');
+function removeComments(sourceCode) {
+    // Create a source file
+    const sourceFile = ts.createSourceFile(
+        'temp.ts',
+        sourceCode,
+        ts.ScriptTarget.Latest,
+        true
+    );
+
+    // Transformer factory to remove comments
+    const transformerFactory = (context) => {
+        return (sourceFile) => {
+            const visitor = (node) => {
+                // Remove JSDoc comments and trailing comments
+                const newNode = ts.setEmitFlags(
+                    ts.getMutableClone(node),
+                    ts.EmitFlags.NoComments | ts.EmitFlags.NoTrailingComments
+                );
+                return ts.visitEachChild(newNode, visitor, context);
+            };
+            return ts.visitNode(sourceFile, visitor);
+        };
+    };
+
+    // Create printer
+    const printer = ts.createPrinter({
+        removeComments: true,
+        newLine: ts.NewLineKind.LineFeed
+    });
+
+    // Transform and print
+    const result = ts.transform(sourceFile, [transformerFactory]);
+    const transformedSourceFile = result.transformed[0];
+    
+    return printer.printFile(transformedSourceFile);
 }
 
-function removeComments(sourceCode) {
-    // Use TypeScript compiler to remove comments
-    const result = typescript.transpileModule(sourceCode, {
-        compilerOptions: {
-            removeComments: true,
-            target: typescript.ScriptTarget.ESNext
-        }
-    });
-    
-    return result.outputText;
+function removeConsoleLog(sourceCode) {
+    // Remove console.log statements
+    const consoleLogRegex = /console\.log\((.*?)\);?\n?/g;
+    return sourceCode.replace(consoleLogRegex, '');
 }
 
 async function formatCode(sourceCode) {
     try {
-        // Format the code using Prettier
         const formattedCode = await prettier.format(sourceCode, config.prettierConfig);
         return formattedCode;
     } catch (error) {
@@ -54,10 +75,17 @@ function processFile(filePath) {
         // Read the file
         const sourceCode = fs.readFileSync(filePath, 'utf8');
         
-        // Remove comments
-        let processedCode = removeComments(sourceCode);
+        // Process the code
+        let processedCode = sourceCode;
         
-        // Remove console.log statements only
+        try {
+            // Remove comments
+            processedCode = removeComments(processedCode);
+        } catch (commentError) {
+            console.warn(`Warning: Could not remove comments from ${filePath}:`, commentError);
+        }
+        
+        // Remove console.log statements
         processedCode = removeConsoleLog(processedCode);
         
         // Format the code
@@ -79,12 +107,10 @@ function walkDirectory(dir) {
         const stats = fs.statSync(filePath);
         
         if (stats.isDirectory()) {
-            // Skip excluded directories
             if (!config.excludeDirs.includes(file)) {
                 walkDirectory(filePath);
             }
         } else if (stats.isFile()) {
-            // Process only files with specified extensions
             const ext = path.extname(file);
             if (config.extensions.includes(ext)) {
                 processFile(filePath);
@@ -93,7 +119,6 @@ function walkDirectory(dir) {
     });
 }
 
-// Main execution
 function main() {
     const projectDir = process.argv[2] || '.';
     
