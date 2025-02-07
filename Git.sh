@@ -17,23 +17,13 @@ modify_jenkinsfile() {
 
 # Function to process a repository
 process_repo() {
-    local repo_url=$1
+    local repo_path=$1
     local base_branch=$2
     local new_branch=$3
     local new_image_tag_prefix=$4
     local commit_message=$5
 
-    # Extract repository name from the URL
-    repo_name=$(basename "$repo_url" .git)
-    repo_path="$base_dir/$repo_name"
-
-    echo "Processing repository: $repo_name"
-
-    # Clone the repository if it doesn't exist
-    if [[ ! -d "$repo_path" ]]; then
-        echo "Cloning repository $repo_name..."
-        git clone "$repo_url" "$repo_path" || { echo "Failed to clone repository. Skipping..."; return; }
-    fi
+    echo "Processing repository: $repo_path"
 
     # Navigate to the repository
     cd "$repo_path" || { echo "Repository $repo_path not found. Skipping..."; return; }
@@ -57,12 +47,12 @@ process_repo() {
     git commit -m "$commit_message" || { echo "Failed to commit changes. Skipping..."; return; }
     git push origin HEAD || { echo "Failed to push changes. Skipping..."; return; }
 
-    echo "Repository $repo_name processed successfully."
+    echo "Repository $repo_path processed successfully."
     cd - > /dev/null || return
 }
 
 # Main script
-echo "Enter the path to the file containing repository URLs:"
+echo "Enter the path to the file containing repository paths:"
 read -r repo_file
 
 echo "Enter the base branch to create the new branch from:"
@@ -77,23 +67,20 @@ read -r new_image_tag_prefix
 echo "Enter the commit message:"
 read -r commit_message
 
-# Base directory where repositories will be cloned/processed
-base_dir=$(pwd)
-
-# Read repository URLs from the file
+# Read repository paths from the file
 if [[ ! -f "$repo_file" ]]; then
     echo "Repository file not found. Exiting..."
     exit 1
 fi
 
 # Process each repository
-while IFS= read -r repo_url; do
+while IFS= read -r repo_path; do
     # Skip empty lines
-    if [[ -z "$repo_url" ]]; then
+    if [[ -z "$repo_path" ]]; then
         continue
     fi
 
-    process_repo "$repo_url" "$base_branch" "$new_branch" "$new_image_tag_prefix" "$commit_message"
+    process_repo "$repo_path" "$base_branch" "$new_branch" "$new_image_tag_prefix" "$commit_message"
 done < "$repo_file"
 
 echo "Script execution completed."
