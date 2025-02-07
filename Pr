@@ -1,0 +1,67 @@
+using OpenQA.Selenium;
+using OpenQA.Selenium.Edge;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+class Program
+{
+    static void Main()
+    {
+        List<string> repoNames = new List<string>
+        {
+            "Repo1",
+            "Repo2",
+            "Repo3"
+        };
+
+        string baseUrl = "https://your-git-platform.com/repo/"; // Update this URL
+        string reviewerEmail = "reviewer@example.com";
+
+        // Initialize Edge WebDriver
+        EdgeOptions options = new EdgeOptions();
+        options.UseChromium = true; // Ensure it runs Chromium-based Edge
+
+        IWebDriver driver = new EdgeDriver(options);
+
+        try
+        {
+            foreach (string repo in repoNames)
+            {
+                string repoUrl = $"{baseUrl}{repo}/pulls/new";  // Construct PR URL
+                driver.Navigate().GoToUrl(repoUrl);
+                Thread.Sleep(2000);  // Adjust wait time if necessary
+
+                // Click "Continue" button (Update selector accordingly)
+                IWebElement continueButton = driver.FindElement(By.XPath("//button[text()='Continue']"));
+                continueButton.Click();
+                Thread.Sleep(2000);
+
+                // Type Reviewer email
+                IWebElement reviewerInput = driver.FindElement(By.Id("reviewer-input")); // Update ID accordingly
+                reviewerInput.SendKeys(reviewerEmail);
+                Thread.Sleep(2000);
+
+                // Select reviewer from dropdown (if applicable)
+                IWebElement reviewerSelect = driver.FindElement(By.XPath($"//span[contains(text(), '{reviewerEmail}')]"));
+                reviewerSelect.Click();
+                Thread.Sleep(2000);
+
+                // Click "Create PR" button
+                IWebElement createPrButton = driver.FindElement(By.XPath("//button[text()='Create']"));
+                createPrButton.Click();
+                Thread.Sleep(3000);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+        }
+        finally
+        {
+            driver.Quit();
+        }
+
+        Console.WriteLine("PR creation completed.");
+    }
+}
