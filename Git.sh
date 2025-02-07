@@ -55,6 +55,14 @@ process_repo() {
 echo "Enter the path to the file containing repository paths:"
 read -r repo_file
 
+# Debug: Check if the file exists
+if [[ ! -f "$repo_file" ]]; then
+    echo "Repository file not found. Exiting..."
+    exit 1
+else
+    echo "Repository file found: $repo_file"
+fi
+
 echo "Enter the base branch to create the new branch from:"
 read -r base_branch
 
@@ -67,18 +75,21 @@ read -r new_image_tag_prefix
 echo "Enter the commit message:"
 read -r commit_message
 
-# Read repository paths from the file
-if [[ ! -f "$repo_file" ]]; then
-    echo "Repository file not found. Exiting..."
-    exit 1
-fi
+# Debug: Print the contents of the file
+echo "Contents of the repository file:"
+cat "$repo_file"
+echo "-------------------------"
 
 # Process each repository
 while IFS= read -r repo_path; do
     # Skip empty lines
     if [[ -z "$repo_path" ]]; then
+        echo "Skipping empty line..."
         continue
     fi
+
+    # Debug: Print the current repository path
+    echo "Processing repository path: $repo_path"
 
     process_repo "$repo_path" "$base_branch" "$new_branch" "$new_image_tag_prefix" "$commit_message"
 done < "$repo_file"
