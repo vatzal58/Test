@@ -1,0 +1,84 @@
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Interactions;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+class Program
+{
+    static void Main()
+    {
+        List<string> repoNames = new List<string>
+        {
+            "Repo1",
+            "Repo2",
+            "Repo3"
+        };
+
+        string baseUrl = "https://your-git-platform.com/repo/"; // Update with your base repo URL
+        string reviewerEmail = "reviewer@example.com";
+
+        IWebDriver driver = new ChromeDriver();
+
+        List<string> successfulRepos = new List<string>();  // List to store successful repos
+
+        try
+        {
+            foreach (string repo in repoNames)
+            {
+                try
+                {
+                    string repoUrl = $"{baseUrl}{repo}/pulls/new";  // Construct PR URL
+                    driver.Navigate().GoToUrl(repoUrl);
+                    Thread.Sleep(2000);
+
+                    // Click "Continue" button
+                    IWebElement continueButton = driver.FindElement(By.XPath("//button[span[text()='Continue']]"));
+                    continueButton.Click();
+                    Thread.Sleep(2000);
+
+                    // Locate reviewer input
+                    IWebElement reviewerInput = driver.FindElement(By.Id("react-select-6-input"));
+                    reviewerInput.SendKeys(reviewerEmail);
+                    Thread.Sleep(2000);
+
+                    // Press Enter to select reviewer
+                    reviewerInput.SendKeys(Keys.Enter);
+                    Thread.Sleep(2000);
+
+                    // Click "Create PR" button
+                    IWebElement createPrButton = driver.FindElement(By.XPath("//button[text()='Create']"));
+                    createPrButton.Click();
+                    Thread.Sleep(3000);
+
+                    successfulRepos.Add(repo);  // Add repo to the success list
+                    Console.WriteLine($"PR created successfully for {repo}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing {repo}: {ex.Message}");
+                    // Continue to the next repo even if this one fails
+                }
+            }
+        }
+        finally
+        {
+            driver.Quit();
+        }
+
+        // Display all successful repos at the end
+        if (successfulRepos.Count > 0)
+        {
+            Console.WriteLine("Successfully created PRs for the following repos:");
+            foreach (var repo in successfulRepos)
+            {
+                Console.WriteLine(repo);
+            }
+        }
+        else
+        {
+            Console.WriteLine("No PRs were created successfully.");
+        }
+    }
+}
