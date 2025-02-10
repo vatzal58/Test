@@ -116,3 +116,14 @@ VALUES ('Complete College Degree', 'Education', 1);
 -- Goal 6 (Child of Goal 5)
 INSERT INTO Goals (Title, Type, CreatedBy)
 VALUES ('Pass Calculus 101', 'Education', 5, 1); -- ChildId refers to "Complete College Degree" goal.
+
+CREATE TABLE Transactions (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ParentId INT,       -- ID of a parent transaction (for sub-transactions or related transactions)
+    ChildId INT,        -- ID of a child transaction (for sub-transactions or related transactions)
+    TaskId INT,         -- ID of the related task (foreign key to the Tasks table, if you have one)
+    Amount DECIMAL(18, 2) NOT NULL, -- Transaction amount (required)
+    Status VARCHAR(50) DEFAULT 'Pending', -- e.g., 'Pending', 'Completed', 'Failed', 'Refunded'
+    CreatedAt DATETIME DEFAULT GETDATE(), -- Timestamp of transaction creation
+    FOREIGN KEY (TaskId) REFERENCES Tasks(Id) -- Foreign key to the Tasks table (if applicable)
+);
