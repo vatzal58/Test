@@ -145,11 +145,11 @@ CREATE TABLE Comments (
     FOREIGN KEY (AttachmentId) REFERENCES Attachments(Id), -- Foreign key to the Attachments table
     FOREIGN KEY (CreatedBy) REFERENCES Users(Id) -- Foreign key to the Users table
 );
-CREATE PROCEDURE GetUserDetails (@UserId INT)
+CREATE PROCEDURE GetUserDetailsByEmail (@Email VARCHAR(255))
 AS
 BEGIN
     -- Check if the user exists
-    IF EXISTS (SELECT 1 FROM Users WHERE Id = @UserId)
+    IF EXISTS (SELECT 1 FROM Users WHERE Email = @Email)
     BEGIN
         -- Retrieve user details
         SELECT 
@@ -164,13 +164,12 @@ BEGIN
             Contact,
             RewardPoints
         FROM Users
-        WHERE Id = @UserId;
+        WHERE Email = @Email;
     END
     ELSE
     BEGIN
         -- Raise an error or return a message if the user doesn't exist
-        RAISERROR('User not found.', 16, 1);  -- Severity 16, State 1
-        -- Or you could return an empty result set:
-        -- SELECT NULL AS Id, NULL AS Name, ... (all columns with NULLs)
+        RAISERROR('User with this email not found.', 16, 1);
+        -- Or return an empty result set (all columns NULL) if you prefer
     END
 END;
