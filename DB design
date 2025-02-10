@@ -145,3 +145,32 @@ CREATE TABLE Comments (
     FOREIGN KEY (AttachmentId) REFERENCES Attachments(Id), -- Foreign key to the Attachments table
     FOREIGN KEY (CreatedBy) REFERENCES Users(Id) -- Foreign key to the Users table
 );
+CREATE PROCEDURE GetUserDetails (@UserId INT)
+AS
+BEGIN
+    -- Check if the user exists
+    IF EXISTS (SELECT 1 FROM Users WHERE Id = @UserId)
+    BEGIN
+        -- Retrieve user details
+        SELECT 
+            Id,
+            Name,
+            Email,
+            Role,
+            Age,
+            DOB,
+            Gender,
+            ParentId,
+            Contact,
+            RewardPoints
+        FROM Users
+        WHERE Id = @UserId;
+    END
+    ELSE
+    BEGIN
+        -- Raise an error or return a message if the user doesn't exist
+        RAISERROR('User not found.', 16, 1);  -- Severity 16, State 1
+        -- Or you could return an empty result set:
+        -- SELECT NULL AS Id, NULL AS Name, ... (all columns with NULLs)
+    END
+END;
