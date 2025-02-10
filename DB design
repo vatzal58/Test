@@ -127,3 +127,21 @@ CREATE TABLE Transactions (
     CreatedAt DATETIME DEFAULT GETDATE(), -- Timestamp of transaction creation
     FOREIGN KEY (TaskId) REFERENCES Tasks(Id) -- Foreign key to the Tasks table (if applicable)
 );
+
+CREATE TABLE Attachments (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Type VARCHAR(50),  -- e.g., 'Image', 'Document', 'Video', 'Audio'
+    Attachment VARBINARY(MAX) -- Binary data of the attachment (for storing files)
+);
+
+CREATE TABLE Comments (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    TaskId INT,       -- ID of the related task (foreign key to the Tasks table)
+    Comment TEXT,      -- The comment text
+    AttachmentId INT,  -- ID of the related attachment (foreign key to the Attachments table)
+    CreatedBy INT,     -- ID of the user who created the comment (foreign key to the Users table)
+    CreatedAt DATETIME DEFAULT GETDATE(), -- Timestamp of comment creation
+    FOREIGN KEY (TaskId) REFERENCES Tasks(Id), -- Foreign key to the Tasks table
+    FOREIGN KEY (AttachmentId) REFERENCES Attachments(Id), -- Foreign key to the Attachments table
+    FOREIGN KEY (CreatedBy) REFERENCES Users(Id) -- Foreign key to the Users table
+);
