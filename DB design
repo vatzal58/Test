@@ -1,0 +1,13 @@
+CREATE TABLE Users (
+    Id INT IDENTITY(1,1) PRIMARY KEY, -- Auto-incrementing primary key
+    Name VARCHAR(255) NOT NULL,      -- User's name (required)
+    Email VARCHAR(255) UNIQUE NOT NULL, -- User's email (unique and required)
+    Role VARCHAR(50),                  -- User's role (e.g., 'Admin', 'User', 'Guest')
+    Age INT,                           -- User's age
+    DOB DATE,                          -- User's date of birth
+    Gender CHAR(1),                     -- User's gender ('M', 'F', 'O' for Other)
+    ParentId INT,                      -- ID of the parent user (for hierarchical relationships)
+    Contact VARCHAR(20),                -- User's contact number
+    RewardPoints INT DEFAULT 0,         -- User's reward points (default 0)
+    FOREIGN KEY (ParentId) REFERENCES Users(Id) -- Foreign key for parent-child relationship (self-referencing)
+);
