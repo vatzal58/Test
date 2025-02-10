@@ -11,3 +11,9 @@ CREATE TABLE Users (
     RewardPoints INT DEFAULT 0,         -- User's reward points (default 0)
     FOREIGN KEY (ParentId) REFERENCES Users(Id) -- Foreign key for parent-child relationship (self-referencing)
 );
+
+INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
+VALUES ('John Doe', 'john.doe@example.com', 'User', 30, '1993-05-15', 'M', NULL, '123-456-7890', 100);
+
+INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
+VALUES ('Jane Smith', 'jane.smith@example.com', 'User', 25, '1998-11-20', 'F', 1, '987-654-3210', 150); -- Jane's parent is John (Id = 1)
