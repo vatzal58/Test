@@ -173,3 +173,153 @@ BEGIN
         -- Or return an empty result set (all columns NULL) if you prefer
     END
 END;
+// 1. appsettings.json
+{
+  "ConnectionStrings": {
+    "YourDatabaseConnection": "Server=(LocalDB)\\MSSQLLocalDB;Database=YourDatabaseName;Trusted_Connection=True;"
+  }
+}
+
+// 2. Interface (IUserRepository.cs)
+public interface IUserRepository
+{
+    Task<UserDetails> GetUserDetailsByEmailAsync(string email);
+}
+
+// 3. Repository (UserRepository.cs)
+public class UserRepository : IUserRepository
+{
+    private readonly string _connectionString;
+
+    public UserRepository(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("YourDatabaseConnection");
+    }
+
+    public async Task<UserDetails> GetUserDetailsByEmailAsync(string email)
+    {
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetUserDetailsByEmail", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@Email", email);
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync()) // Check if a row was returned
+                    {
+                        return new UserDetails
+                        {
+                            Id = reader.GetInt32(0),
+                            Name = reader.GetString(1),
+                            Email = reader.GetString(2),
+                            Role = reader.IsDBNull(3) ? null : reader.GetString(3), // Handle potential DBNull
+                            Age = reader.IsDBNull(4) ? null : (int?)reader.GetInt32(4),
+                            DOB = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                            Gender = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            ParentId = reader.IsDBNull(7) ? null : (int?)reader.GetInt32(7),
+                            Contact = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            RewardPoints = reader.IsDBNull(9) ? null : (int?)reader.GetInt32(9)
+                        };
+                    }
+                    else
+                    {
+                        return null; // Or throw an exception if you prefer
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (using a logging framework)
+                Console.WriteLine($"Error in GetUserDetailsByEmailAsync: {ex.Message}");
+                throw; // Re-throw the exception after logging
+            }
+        }
+    }
+}
+
+
+// 4. Model (UserDetails.cs)
+public class UserDetails
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string Email { get; set; }
+    public string Role { get; set; }
+    public int? Age { get; set; } // Nullable int
+    public DateTime? DOB { get; set; } // Nullable DateTime
+    public string Gender { get; set; }
+    public int? ParentId { get; set; } // Nullable int
+    public string Contact { get; set; }
+    public int? RewardPoints { get; set; } // Nullable int
+}
+
+// 5. Service (UserService.cs)
+public class UserService : IUserService
+{
+    private readonly IUserRepository _userRepository;
+
+    public UserService(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<UserDetails> GetUserDetailsByEmailAsync(string email)
+    {
+        return await _userRepository.GetUserDetailsByEmailAsync(email);
+    }
+}
+
+public interface IUserService
+{
+    Task<UserDetails> GetUserDetailsByEmailAsync(string email);
+}
+
+// 6. Controller (YourController.cs)
+[ApiController]
+[Route("[controller]")]
+public class YourController : ControllerBase
+{
+    private readonly IUserService _userService;
+
+    public YourController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
+    [HttpGet("{email}")]
+    public async Task<IActionResult> GetUser(string email)
+    {
+        var user = await _userService.GetUserDetailsByEmailAsync(email);
+
+        if (user == null)
+        {
+            return NotFound(); // Or NoContent(), depending on your preference
+        }
+
+        return Ok(user);
+    }
+}
+
+// 7. Startup.cs (or Program.cs in .NET 6+)
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddControllers();
+    services.AddTransient<IUserRepository, UserRepository>();
+    services.AddTransient<IUserService, UserService>();
+
+    // Add your connection string
+    services.AddDbContext<YourDbContext>(options =>
+        options.UseSqlServer(Configuration.GetConnectionString("YourDatabaseConnection")));
+}
+
+// In .NET 6+ Program.cs:
+builder.Services.AddControllers();
+builder.Services.AddTransient<IUserRepository, UserRepository>();
+builder.Services.AddTransient<IUserService, UserService>();
+
+builder.Services.AddDbContext<YourDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("YourDatabaseConnection")));
