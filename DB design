@@ -80,3 +80,39 @@ VALUES ('Bake a Cake', 'Bake a chocolate cake for the party.', 60, '2024-03-25',
 -- Chore 7 (Child of Chore 6)
 INSERT INTO Chores (Title, Description, Reward, ParentId, DueDate, Frequency, Category, CreatedBy)
 VALUES ('Prepare Frosting', 'Make the chocolate frosting for the cake.', 25, 6, '2024-03-25', 'Once', 'Cooking', 1); -- ParentId refers to "Bake a Cake"
+
+CREATE TABLE Goals (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Title VARCHAR(255) NOT NULL,
+    Type VARCHAR(50),  -- e.g., 'Financial', 'Personal', 'Health', 'Education'
+    ChildId INT,       -- ID of a child goal (for sub-goals)
+    CreatedBy INT,     -- ID of the user who created the goal
+    CreatedAt DATETIME DEFAULT GETDATE(), -- Timestamp of goal creation
+    Amount DECIMAL(18, 2), -- Target amount for the goal (if applicable)
+    FOREIGN KEY (CreatedBy) REFERENCES Users(Id) -- Foreign key to the Users table
+);
+
+
+-- Goal 1 (No child goal)
+INSERT INTO Goals (Title, Type, CreatedBy, Amount)
+VALUES ('Save for Down Payment', 'Financial', 1, 10000.00);
+
+-- Goal 2 (Parent of Goal 3)
+INSERT INTO Goals (Title, Type, CreatedBy)
+VALUES ('Improve Fitness', 'Health', 2);
+
+-- Goal 3 (Child of Goal 2)
+INSERT INTO Goals (Title, Type, ChildId, CreatedBy)
+VALUES ('Run a 5K', 'Health', 2, 2);  -- ChildId refers to "Improve Fitness" goal.
+
+-- Goal 4 (No child goal)
+INSERT INTO Goals (Title, Type, CreatedBy)
+VALUES ('Learn a New Language', 'Personal', 1);
+
+-- Goal 5 (Parent of Goal 6)
+INSERT INTO Goals (Title, Type, CreatedBy)
+VALUES ('Complete College Degree', 'Education', 1);
+
+-- Goal 6 (Child of Goal 5)
+INSERT INTO Goals (Title, Type, CreatedBy)
+VALUES ('Pass Calculus 101', 'Education', 5, 1); -- ChildId refers to "Complete College Degree" goal.
