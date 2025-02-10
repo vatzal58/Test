@@ -13,7 +13,10 @@ CREATE TABLE Users (
 );
 
 INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
-VALUES ('John Doe', 'john.doe@example.com', 'User', 30, '1993-05-15', 'M', NULL, '123-456-7890', 100);
+VALUES ('Alice Johnson', 'alice.j@example.com', 'User', 28, '1995-03-10', 'F', NULL, '555-987-6543', 200);
 
 INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
-VALUES ('Jane Smith', 'jane.smith@example.com', 'User', 25, '1998-11-20', 'F', 1, '987-654-3210', 150); -- Jane's parent is John (Id = 1)
+VALUES ('Bob Williams', 'bob.w@example.com', 'Admin', 35, '1988-09-22', 'M', NULL, '555-123-7890', 150);
+
+INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
+VALUES ('Eva Garcia', 'eva.g@example.com', 'User', 22, '2001-06-05', 'F', 1, '555-567-8901', 100); -- Eva's parent is Alice (Id = 1)
