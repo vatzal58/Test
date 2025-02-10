@@ -18,5 +18,23 @@ VALUES ('Alice Johnson', 'alice.j@example.com', 'User', 28, '1995-03-10', 'F', N
 INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
 VALUES ('Bob Williams', 'bob.w@example.com', 'Admin', 35, '1988-09-22', 'M', NULL, '555-123-7890', 150);
 
+CREATE TABLE ChoreTemplates (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Title VARCHAR(255) NOT NULL,
+    Description TEXT,
+    Category VARCHAR(50)
+);
+
+-- Example Data (Predefined Chores):
+INSERT INTO ChoreTemplates (Title, Description, Category) VALUES
+('Wash Dishes', 'Wash and dry all dishes in the sink.', 'Cleaning'),
+('Mow Lawn', 'Mow the front and back lawn.', 'Yard Work'),
+('Grocery Shopping', 'Buy groceries from the list on the fridge.', 'Errands'),
+('Fold Laundry', 'Fold and put away the clean laundry.', 'Cleaning'),
+('Cook Dinner', 'Prepare dinner for the family.', 'Cooking'),
+('Clean Bathroom', 'Clean the bathroom, including toilet, sink, and shower/tub.', 'Cleaning'),
+('Dust Furniture', 'Dust all furniture in the living room and bedrooms.', 'Cleaning'),
+('Take Out Trash', 'Empty all trash cans and take out the trash.', 'Household');
+
 INSERT INTO Users (Name, Email, Role, Age, DOB, Gender, ParentId, Contact, RewardPoints)
 VALUES ('Eva Garcia', 'eva.g@example.com', 'User', 22, '2001-06-05', 'F', 1, '555-567-8901', 100); -- Eva's parent is Alice (Id = 1)
