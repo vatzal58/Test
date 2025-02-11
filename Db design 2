@@ -1,0 +1,307 @@
+-- Stored Procedure (GetChoresWithCommentsAndAttachmentsByParentId)
+CREATE PROCEDURE GetChoresWithCommentsAndAttachmentsByParentId (@ParentId INT)
+AS
+BEGIN
+    SELECT 
+        c.Id AS ChoreId,
+        c.Title AS ChoreTitle,
+        c.Description AS ChoreDescription,
+        c.Reward AS ChoreReward,
+        c.DueDate AS ChoreDueDate,
+        c.CompletionDate AS ChoreCompletionDate,
+        c.Status AS ChoreStatus,
+        c.Frequency AS ChoreFrequency,
+        c.Category AS ChoreCategory,
+        c.CreatedAt AS ChoreCreatedAt,
+        c.CreatedBy AS ChoreCreatedBy,
+        com.Id AS CommentId,
+        com.Comment AS CommentText,
+        com.CreatedAt AS CommentCreatedAt,
+        u.Name AS CommentCreatedBy,  -- Assuming you want the user's name
+        a.Id AS AttachmentId,
+        a.Type AS AttachmentType
+        -- ... other attachment properties (if needed)
+    FROM Chores c
+    LEFT JOIN Comments com ON c.Id = com.ChoreId
+    LEFT JOIN Attachments a ON com.AttachmentId = a.Id
+    LEFT JOIN Users u ON com.CreatedBy = u.Id
+    WHERE c.ParentId = @ParentId
+    ORDER BY c.Id, com.CreatedAt; -- Order by chore ID and then comment creation time
+END;
+
+-- Stored Procedure (GetAllChoresWithCommentsAndAttachments)
+CREATE PROCEDURE GetAllChoresWithCommentsAndAttachments
+AS
+BEGIN
+    SELECT 
+        c.Id AS ChoreId,
+        c.Title AS ChoreTitle,
+        c.Description AS ChoreDescription,
+        c.Reward AS ChoreReward,
+        c.DueDate AS ChoreDueDate,
+        c.CompletionDate AS ChoreCompletionDate,
+        c.Status AS ChoreStatus,
+        c.Frequency AS ChoreFrequency,
+        c.Category AS ChoreCategory,
+        c.CreatedAt AS ChoreCreatedAt,
+        c.CreatedBy AS ChoreCreatedBy,
+        com.Id AS CommentId,
+        com.Comment AS CommentText,
+        com.CreatedAt AS CommentCreatedAt,
+        u.Name AS CommentCreatedBy,  -- Assuming you want the user's name
+        a.Id AS AttachmentId,
+        a.Type AS AttachmentType
+        -- ... other attachment properties (if needed)
+    FROM Chores c
+    LEFT JOIN Comments com ON c.Id = com.ChoreId
+    LEFT JOIN Attachments a ON com.AttachmentId = a.Id
+    LEFT JOIN Users u ON com.CreatedBy = u.Id
+    ORDER BY c.Id, com.CreatedAt; -- Order by chore ID and then comment creation time
+END;
+
+// 1. Models (ChoreWithCommentsAndAttachments.cs)
+public class ChoreWithCommentsAndAttachments
+{
+    public int ChoreId { get; set; }
+    public string ChoreTitle { get; set; }
+    public string ChoreDescription { get; set; }
+    public int? ChoreReward { get; set; }
+    public DateTime? ChoreDueDate { get; set; }
+    public DateTime? ChoreCompletionDate { get; set; }
+    public string ChoreStatus { get; set; }
+    public string ChoreFrequency { get; set; }
+    public string ChoreCategory { get; set; }
+    public DateTime? ChoreCreatedAt { get; set; }
+    public int? ChoreCreatedBy { get; set; }
+
+    public List<Comment> Comments { get; set; } = new List<Comment>();
+    public List<Attachment> Attachments { get; set; } = new List<Attachment>();
+
+    public class Comment
+    {
+        public int CommentId { get; set; }
+        public string CommentText { get; set; }
+        public DateTime? CommentCreatedAt { get; set; }
+        public string CommentCreatedBy { get; set; }
+    }
+
+    public class Attachment
+    {
+        public int AttachmentId { get; set; }
+        public string AttachmentType { get; set; }
+        // ... other attachment properties (if needed)
+    }
+}
+
+
+// 2. Interface (IChoreRepository.cs)
+public interface IChoreRepository
+{
+    // ... other chore-related methods
+
+    Task<List<ChoreWithCommentsAndAttachments>> GetChoresWithCommentsAndAttachmentsByParentIdAsync(int parentId);
+    Task<List<ChoreWithCommentsAndAttachments>> GetAllChoresWithCommentsAndAttachmentsAsync();
+}
+
+// 3. Repository (ChoreRepository.cs)
+public class ChoreRepository : IChoreRepository
+{
+    // ... (connection string, logger, other methods)
+
+    public async Task<List<ChoreWithCommentsAndAttachments>> GetChoresWithCommentsAndAttachmentsByParentIdAsync(int parentId)
+    {
+        List<ChoreWithCommentsAndAttachments> chores = new List<ChoreWithCommentsAndAttachments>();
+
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetChoresWithCommentsAndAttachmentsByParentId", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@ParentId", parentId);
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var chore = new ChoreWithCommentsAndAttachments
+                        {
+                            ChoreId = reader.GetInt32(0),
+                            ChoreTitle = reader.GetString(1),
+                            ChoreDescription = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            ChoreReward = reader.IsDBNull(3) ? null : (int?)reader.GetInt32(3),
+                            ChoreDueDate = reader.IsDBNull(4) ? null : (DateTime?)reader.GetDateTime(4),
+                            ChoreCompletionDate = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                            ChoreStatus = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            ChoreFrequency = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            ChoreCategory = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            ChoreCreatedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                            ChoreCreatedBy = reader.IsDBNull(10) ? null : (int?)reader.GetInt32(10)
+                        };
+
+                        var existingChore = chores.FirstOrDefault(c => c.ChoreId == chore.ChoreId);
+
+                        if (existingChore == null)
+                        {
+                            chores.Add(chore);
+                            existingChore = chore;
+                        }
+
+                        if (!reader.IsDBNull(11)) // Check for comments
+                        {
+                            existingChore.Comments.Add(new ChoreWithCommentsAndAttachments.Comment
+                            {
+                                CommentId = reader.GetInt32(11),
+                                CommentText = reader.GetString(12),
+                                CommentCreatedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                                CommentCreatedBy = reader.IsDBNull(14) ? null : reader.GetString(14)
+                            });
+                        }
+
+                        if (!reader.IsDBNull(15)) // Check for attachments
+                        {
+                            existingChore.Attachments.Add(new ChoreWithCommentsAndAttachments.Attachment
+                            {
+                                AttachmentId = reader.GetInt32(15),
+                                AttachmentType = reader.GetString(16)
+                                // ... other attachment properties
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetChoresWithCommentsAndAttachmentsByParentIdAsync: {ParentId}", parentId);
+                throw;
+            }
+        }
+
+        return chores;
+    }
+
+    public async Task<List<ChoreWithCommentsAndAttachments>> GetAllChoresWithCommentsAndAttachmentsAsync()
+    {
+        List<ChoreWithCommentsAndAttachments> chores = new List<ChoreWithCommentsAndAttachments>();
+
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetAllChoresWithCommentsAndAttachments", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var chore = new ChoreWithCommentsAndAttachments
+                        {
+                            ChoreId = reader.GetInt32(0),
+                            ChoreTitle = reader.GetString(1),
+                            ChoreDescription = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            ChoreReward = reader.IsDBNull(3) ? null : (int?)reader.GetInt32
+// ... (rest of ChoreRepository.cs)
+
+                            ChoreDueDate = reader.IsDBNull(4) ? null : (DateTime?)reader.GetDateTime(4),
+                            ChoreCompletionDate = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                            ChoreStatus = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            ChoreFrequency = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            ChoreCategory = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            ChoreCreatedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                            ChoreCreatedBy = reader.IsDBNull(10) ? null : (int?)reader.GetInt32(10)
+                        };
+
+                        var existingChore = chores.FirstOrDefault(c => c.ChoreId == chore.ChoreId);
+
+                        if (existingChore == null)
+                        {
+                            chores.Add(chore);
+                            existingChore = chore;
+                        }
+
+                        if (!reader.IsDBNull(11)) // Check for comments
+                        {
+                            existingChore.Comments.Add(new ChoreWithCommentsAndAttachments.Comment
+                            {
+                                CommentId = reader.GetInt32(11),
+                                CommentText = reader.GetString(12),
+                                CommentCreatedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                                CommentCreatedBy = reader.IsDBNull(14) ? null : reader.GetString(14)
+                            });
+                        }
+
+                        if (!reader.IsDBNull(15)) // Check for attachments
+                        {
+                            existingChore.Attachments.Add(new ChoreWithCommentsAndAttachments.Attachment
+                            {
+                                AttachmentId = reader.GetInt32(15),
+                                AttachmentType = reader.GetString(16)
+                                // ... other attachment properties
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetAllChoresWithCommentsAndAttachmentsAsync");
+                throw;
+            }
+        }
+
+        return chores;
+    }
+}
+
+// 4. Interface (IChoreService.cs)
+public interface IChoreService
+{
+    // ... other chore-related methods
+
+    Task<List<ChoreWithCommentsAndAttachments>> GetChoresWithCommentsAndAttachmentsByParentIdAsync(int parentId);
+    Task<List<ChoreWithCommentsAndAttachments>> GetAllChoresWithCommentsAndAttachmentsAsync();
+}
+
+// 5. Service (ChoreService.cs)
+public class ChoreService : IChoreService
+{
+    // ... (other methods)
+
+    public async Task<List<ChoreWithCommentsAndAttachments>> GetChoresWithCommentsAndAttachmentsByParentIdAsync(int parentId)
+    {
+        return await _choreRepository.GetChoresWithCommentsAndAttachmentsByParentIdAsync(parentId);
+    }
+
+    public async Task<List<ChoreWithCommentsAndAttachments>> GetAllChoresWithCommentsAndAttachmentsAsync()
+    {
+        return await _choreRepository.GetAllChoresWithCommentsAndAttachmentsAsync();
+    }
+}
+
+// 6. Controller (ChoreController.cs)
+[ApiController]
+[Route("api/[controller]")]
+public class ChoreController : ControllerBase
+{
+    // ... (other actions)
+
+    [HttpGet("parent/{parentId}/with-comments-and-attachments")]
+    public async Task<IActionResult> GetChoresWithCommentsAndAttachmentsByParentId(int parentId)
+    {
+        var chores = await _choreService.GetChoresWithCommentsAndAttachmentsByParentIdAsync(parentId);
+        return Ok(chores);
+    }
+
+    [HttpGet("all/with-comments-and-attachments")]
+    public async Task<IActionResult> GetAllChoresWithCommentsAndAttachments()
+    {
+        var chores = await _choreService.GetAllChoresWithCommentsAndAttachmentsAsync();
+        return Ok(chores);
+    }
+}
+
+// 7. Startup.cs (or Program.cs in .NET 6+)
+// ... (no changes needed if using existing services)
