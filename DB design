@@ -457,3 +457,123 @@ builder.Services.AddTransient<IChoreTemplateService, ChoreTemplateService>();
 // Don't forget to add logging!
 builder.Logging.AddConsole(); // Or your preferred logging provider
 
+-- Stored Procedure (GetChildrenByParentId)
+CREATE PROCEDURE GetChildrenByParentId (@ParentId INT)
+AS
+BEGIN
+    SELECT 
+        Id,
+        Name,
+        Email,
+        Role,
+        Age,
+        DOB,
+        Gender,
+        ParentId,
+        Contact,
+        RewardPoints
+    FROM Users
+    WHERE ParentId = @ParentId;
+END;
+
+// 1. Interface (IUserRepository.cs) - (Add to your existing IUserRepository)
+public interface IUserRepository
+{
+    // ... other user-related methods
+
+    Task<List<UserDetails>> GetChildrenByParentIdAsync(int parentId);
+}
+
+// 2. Repository (UserRepository.cs) - (Add to your existing UserRepository)
+public class UserRepository : IUserRepository
+{
+    // ... (connection string, logger, other methods)
+
+    public async Task<List<UserDetails>> GetChildrenByParentIdAsync(int parentId)
+    {
+        List<UserDetails> children = new List<UserDetails>();
+
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetChildrenByParentId", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@ParentId", parentId);
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        children.Add(new UserDetails
+                        {
+                            Id = reader.GetInt32(0),
+                            Name = reader.GetString(1),
+                            Email = reader.GetString(2),
+                            Role = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            Age = reader.IsDBNull(4) ? null : (int?)reader.GetInt32(4),
+                            DOB = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                            Gender = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            ParentId = reader.IsDBNull(7) ? null : (int?)reader.GetInt32(7),
+                            Contact = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            RewardPoints = reader.IsDBNull(9) ? null : (int?)reader.GetInt32(9)
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetChildrenByParentIdAsync: {ParentId}", parentId);
+                throw; // Re-throw after logging
+            }
+        }
+
+        return children;
+    }
+}
+
+// 3. Interface (IUserService.cs) - (Add to your existing IUserService)
+public interface IUserService
+{
+    // ... other user-related methods
+
+    Task<List<UserDetails>> GetChildrenByParentIdAsync(int parentId);
+}
+
+// 4. Service (UserService.cs) - (Add to your existing UserService)
+public class UserService : IUserService
+{
+    // ... (other methods)
+
+    public async Task<List<UserDetails>> GetChildrenByParentIdAsync(int parentId)
+    {
+        return await _userRepository.GetChildrenByParentIdAsync(parentId);
+    }
+}
+
+// 5. Controller (UserController.cs or a new ParentController)
+[ApiController]
+[Route("api/[controller]")] // Standard route
+public class UserController : ControllerBase // Or create a ParentController if you prefer
+{
+    private readonly IUserService _userService;
+
+    public UserController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
+    // ... other user-related actions
+
+    [HttpGet("{parentId}/children")] // Specific route for getting children
+    public async Task<IActionResult> GetChildren(int parentId)
+    {
+        var children = await _userService.GetChildrenByParentIdAsync(parentId);
+        return Ok(children); // Return 200 OK with the list of children
+    }
+}
+
+// 6. Startup.cs (or Program.cs in .NET 6+) - (No changes needed if using existing services)
+// ... (no changes needed if IUserRepository and IUserService are already registered)
+
