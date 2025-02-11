@@ -299,3 +299,268 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+-- Stored Procedure (ManageChore.sql)
+CREATE PROCEDURE ManageChore (
+    @ChoreId INT,          -- 0 for new chore, existing Id for update
+    @ParentId INT = NULL,
+    @ChildId INT = NULL,
+    @Title VARCHAR(255) = NULL,
+    @Description TEXT = NULL,
+    @Reward INT = NULL,
+    @DueDate DATETIME = NULL,
+    @Category VARCHAR(255) = NULL,
+    @CommentText TEXT = NULL,
+    @AttachmentType VARCHAR(255) = NULL,
+    @AttachmentContent VARBINARY(MAX) = NULL,
+    @Status VARCHAR(50) = NULL,
+    @CreatedBy INT = NULL  -- Mandatory CreatedBy
+)
+AS
+BEGIN
+    IF @ChoreId = 0  -- Create New Chore
+    BEGIN
+        INSERT INTO Chores (ParentId, ChildId, Title, Description, Reward, DueDate, Category, CreatedBy, CreatedAt, Status)
+        VALUES (@ParentId, @ChildId, @Title, @Description, @Reward, @DueDate, @Category, @CreatedBy, GETDATE(), 'Pending'); --Default status
+
+        SELECT SCOPE_IDENTITY(); -- Return the new ChoreId
+    END
+    ELSE  -- Update Existing Chore
+    BEGIN
+        -- Update Chore Details (Parent Updates)
+        IF @ParentId IS NOT NULL
+        BEGIN
+            UPDATE Chores
+            SET
+                Title = ISNULL(@Title, Title),
+                Description = ISNULL(@Description, Description),
+                Reward = ISNULL(@Reward, Reward),
+                ChildId = ISNULL(@ChildId, ChildId),
+                DueDate = ISNULL(@DueDate, DueDate),
+                Category = ISNULL(@Category, Category)
+            WHERE Id = @ChoreId AND ParentId = @ParentId;
+        END
+
+        -- Child Completion
+        IF @ChildId IS NOT NULL AND @Status IS NOT NULL
+        BEGIN
+            UPDATE Chores
+            SET Status = @Status, CompletionDate = GETDATE()
+            WHERE Id = @ChoreId AND ChildId = @ChildId;
+        END
+
+        -- Add Comment and Attachment (Both Parent and Child)
+        IF @CommentText IS NOT NULL
+        BEGIN
+            -- Insert Comment (Initially without AttachmentId)
+            INSERT INTO Comments (ChoreId, Comment, CreatedBy, CreatedAt, AttachmentId)
+            VALUES (@ChoreId, @CommentText, @CreatedBy, GETDATE(), NULL);
+
+            DECLARE @CommentId INT;
+            SELECT @CommentId = SCOPE_IDENTITY();
+
+            -- Insert Attachment and Update Comment (if attachment provided)
+            IF @AttachmentContent IS NOT NULL
+            BEGIN
+                INSERT INTO Attachments (CommentId, Type, Attachment)
+                VALUES (@CommentId, @AttachmentType, @AttachmentContent);
+
+                DECLARE @AttachmentId INT;
+                SELECT @AttachmentId = SCOPE_IDENTITY();
+
+                UPDATE Comments
+                SET AttachmentId = @AttachmentId
+                WHERE Id = @CommentId;
+            END
+        END
+
+        SELECT @ChoreId; -- Return the existing ChoreId (for update confirmation)
+    END
+END;
+
+// 1. Models (ChoreModel.cs)
+public class ChoreModel
+{
+    public int? ParentId { get; set; }
+    public int? ChildId { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public int? Reward { get; set; }
+    public DateTime? DueDate { get; set; }
+    public string Category { get; set; }
+    public string CommentText { get; set; }
+    public IFormFile Attachment { get; set; }
+    public string Status { get; set; }
+}
+
+// 2. Interface (IChoreRepository.cs)
+public interface IChoreRepository
+{
+    Task<int> ManageChoreAsync(int choreId, ChoreModel model, int createdBy);
+}
+
+// 3. Repository (ChoreRepository.cs)
+public class ChoreRepository : IChoreRepository
+{
+    private readonly string _connectionString;
+    private readonly ILogger<ChoreRepository> _logger;
+
+    public ChoreRepository(IConfiguration configuration, ILogger<ChoreRepository> logger)
+    {
+        _connectionString = configuration.GetConnectionString("YourDatabaseConnection");
+        _logger = logger;
+    }
+
+    public async Task<int> ManageChoreAsync(int choreId, ChoreModel model, int createdBy)
+    {
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("ManageChore", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@ChoreId", choreId);
+            command.Parameters.AddWithValue("@ParentId", model.ParentId ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@ChildId", model.ChildId ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Title", model.Title ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Description", model.Description ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Reward", model.Reward ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@DueDate", model.DueDate ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Category", model.Category ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@CommentText", model.CommentText ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@AttachmentType", model.Attachment?.ContentType ?? (object)DBNull.Value); // Handle null
+            command.Parameters.AddWithValue("@AttachmentContent", model.Attachment?.OpenReadStream()?.ToByteArray() ?? (object)DBNull.Value); // Handle null
+            command.Parameters.AddWithValue("@Status", model.Status ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@CreatedBy", createdBy);
+
+            try
+            {
+                await connection.OpenAsync();
+                object result = await command.ExecuteScalarAsync();
+                return Convert.ToInt32(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error managing chore: {ChoreId}", choreId);
+                throw;
+            }
+        }
+    }
+}
+
+// 4. Interface (IChoreService.cs)
+public interface IChoreService
+{
+    Task<int> ManageChoreAsync(int choreId, ChoreModel model, int createdBy);
+}
+
+// 5. Service (ChoreService.cs)
+public class ChoreService : IChoreService
+{
+    private readonly IChoreRepository _choreRepository;
+
+    public ChoreService(IChoreRepository choreRepository)
+    {
+        _choreRepository = choreRepository;
+    }
+
+    public async Task<int> ManageChoreAsync(int choreId, ChoreModel model, int createdBy)
+    {
+        byte[] attachmentContent = null;
+        string attachmentType = null;
+
+        if (model.Attachment != null)
+        {
+            using (var stream = model.Attachment.OpenReadStream())
+            using (var memoryStream = new MemoryStream())
+            {
+                stream.CopyTo(memoryStream);
+                attachmentContent = memoryStream.ToArray();
+                attachmentType = model.Attachment.ContentType;
+            }
+        }
+
+        return await _choreRepository.ManageChoreAsync(choreId, model, createdBy);
+    }
+}
+
+// 6. Controller (ChoreController.cs)
+[ApiController]
+[Route("api/[controller]")]
+public class ChoreController : ControllerBase
+{
+    private readonly IChoreService _choreService;
+
+    public ChoreController(IChoreService choreService)
+    {
+        _choreService = choreService;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateChore([FromForm] ChoreModel model)
+    {
+        var userId = GetUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        int newChoreId = await _choreService.ManageChoreAsync(0, model, userId.Value);
+        return CreatedAtAction(nameof(GetChore), new { id = newChoreId }, null);
+    }
+
+    [HttpPut("{choreId}")]
+    public async Task<IActionResult> UpdateChore(int choreId, [FromForm] ChoreModel model)
+    {
+        var userId = GetUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        int updatedChoreId = await _choreService.ManageChoreAsync(choreId, model, userId.Value);
+        if (updatedChoreId > 0)
+        {
+            return NoContent();
+        }
+        return BadRequest();
+    }
+
+    private int? GetUserId()
+    {
+        if (User.Identity.IsAuthenticated)
+
+
+// 6. Controller (ChoreController.cs)
+[ApiController]
+[Route("api/[controller]")]
+public class ChoreController : ControllerBase
+{
+    private readonly IChoreService _choreService;
+
+    public ChoreController(IChoreService choreService)
+    {
+        _choreService = choreService;
+    }
+
+    [HttpPost] // Use POST for BOTH create and update
+    public async Task<IActionResult> ManageChore([FromForm] ChoreModel model, [FromQuery] int choreId = 0) // choreId in query string
+    {
+        var userId = GetUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        int managedChoreId = await _choreService.ManageChoreAsync(choreId, model, userId.Value); // Pass choreId
+
+        if (choreId == 0) // Check if it was a create operation
+        {
+            return CreatedAtAction(nameof(GetChore), new { id = managedChoreId }, null); // 201 Created
+        }
+        else // It was an update
+        {
+            return NoContent(); // 204 No Content
+        }
+    }
+
+    // ... (GetUserId method - same as before)
+}
