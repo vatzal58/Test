@@ -86,3 +86,216 @@ BEGIN
         ORDER BY c.Id, com.CreatedAt;
     END
 END;
+
+
+// 1. Models (ChoreWithCommentsAndAttachments.cs)
+public class ChoreWithCommentsAndAttachments
+{
+    public int ChoreId { get; set; }
+    public string ChoreTitle { get; set; }
+    public string ChoreDescription { get; set; }
+    public int? ChoreReward { get; set; }
+    public DateTime? ChoreDueDate { get; set; }
+    public DateTime? ChoreCompletionDate { get; set; }
+    public string ChoreStatus { get; set; }
+    public string ChoreFrequency { get; set; }
+    public string ChoreCategory { get; set; }
+    public DateTime? ChoreCreatedAt { get; set; }
+    public int? ChoreCreatedBy { get; set; }
+
+    public List<Comment> Comments { get; set; } = new List<Comment>();
+    public List<Attachment> Attachments { get; set; } = new List<Attachment>();
+
+    public class Comment
+    {
+        public int CommentId { get; set; }
+        public string CommentText { get; set; }
+        public DateTime? CommentCreatedAt { get; set; }
+        public string CommentCreatedBy { get; set; }
+    }
+
+    public class Attachment
+    {
+        public int AttachmentId { get; set; }
+        public string AttachmentType { get; set; }
+        public byte[] AttachmentContent { get; set; } 
+    }
+}
+
+// 2. Interface (IChoreRepository.cs)
+public interface IChoreRepository
+{
+    Task<ChoreWithCommentsAndAttachments> GetChoreAsync(int id, char type);
+}
+
+// 3. Repository (ChoreRepository.cs)
+public class ChoreRepository : IChoreRepository
+{
+    private readonly string _connectionString;
+    private readonly ILogger<ChoreRepository> _logger;
+
+    public ChoreRepository(IConfiguration configuration, ILogger<ChoreRepository> logger)
+    {
+        _connectionString = configuration.GetConnectionString("YourDatabaseConnection");
+        _logger = logger;
+    }
+
+    public async Task<ChoreWithCommentsAndAttachments> GetChoreAsync(int id, char type)
+    {
+        ChoreWithCommentsAndAttachments chore = null;
+
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetChores", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Type", type);
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        if (chore == null)
+                        {
+                            chore = new ChoreWithCommentsAndAttachments
+                            {
+                                ChoreId = reader.GetInt32("ChoreId"),
+                                ChoreTitle = reader.IsDBNull("ChoreTitle") ? null : reader.GetString("ChoreTitle"),
+                                ChoreDescription = reader.IsDBNull("ChoreDescription") ? null : reader.GetString("ChoreDescription"),
+                                ChoreReward = reader.IsDBNull("ChoreReward") ? null : (int?)reader.GetInt32("ChoreReward"),
+                                ChoreDueDate = reader.IsDBNull("ChoreDueDate") ? null : (DateTime?)reader.GetDateTime("ChoreDueDate"),
+                                ChoreCompletionDate = reader.IsDBNull("ChoreCompletionDate") ? null : (DateTime?)reader.GetDateTime("ChoreCompletionDate"),
+                                ChoreStatus = reader.IsDBNull("ChoreStatus") ? null : reader.GetString("ChoreStatus"),
+                                ChoreFrequency = reader.IsDBNull("ChoreFrequency") ? null : reader.GetString("ChoreFrequency"),
+                                ChoreCategory = reader.IsDBNull("ChoreCategory") ? null : reader.GetString("ChoreCategory"),
+                                ChoreCreatedAt = reader.IsDBNull("ChoreCreatedAt") ? null : reader.GetDateTime("ChoreCreatedAt"),
+                                ChoreCreatedBy = reader.IsDBNull("ChoreCreatedBy") ? null : (int?)reader.GetInt32("ChoreCreatedBy")
+                            };
+                        }
+
+                        if (!reader.IsDBNull("CommentId"))
+                        {
+                            chore.Comments.Add(new ChoreWithCommentsAndAttachments.Comment
+                            {
+                                CommentId = reader.GetInt32("CommentId"),
+                                CommentText = reader.IsDBNull("CommentText") ? null : reader.GetString("CommentText"),
+                                CommentCreatedAt = reader.IsDBNull("CommentCreatedAt") ? null : reader.GetDateTime("CommentCreatedAt"),
+                                CommentCreatedBy = reader.IsDBNull("CommentCreatedBy") ? null : reader.GetString("CommentCreatedBy")
+                            });
+                        }
+
+                        if (!reader.IsDBNull("AttachmentId"))
+                        {
+                            chore.Attachments.Add(new ChoreWithCommentsAndAttachments.Attachment
+                            {
+                                AttachmentId = reader.GetInt32("AttachmentId"),
+                                AttachmentType = reader.IsDBNull("AttachmentType") ? null : reader.GetString("AttachmentType"),
+                                AttachmentContent = reader.IsDBNull("AttachmentContent") ? null : reader.GetSqlBytes("AttachmentContent").Value
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetChoreAsync: Id={Id}, Type={Type}", id, type);
+                throw;
+            }
+        }
+
+        return chore;
+    }
+}
+
+// 4. Interface (IChoreService.cs)
+public interface IChoreService
+{
+    Task<ChoreWithCommentsAndAttachments> GetChoreAsync(int id, char type);
+}
+
+// 5. Service (ChoreService.cs)
+public class ChoreService : IChoreService
+{
+    private readonly IChoreRepository _choreRepository;
+
+    public ChoreService(IChoreRepository choreRepository)
+    {
+        _choreRepository = choreRepository;
+    }
+
+    public async Task<ChoreWithCommentsAndAttachments> GetChoreAsync(int id, char type)
+    {
+        return await _choreRepository.GetChoreAsync(id, type);
+    }
+}
+
+// 6. Controller (ChoreController.cs)
+[ApiController]
+[Route("api/[controller]")]
+public class ChoreController : ControllerBase
+{
+    private readonly IChoreService _choreService;
+
+    public ChoreController(IChoreService choreService)
+    {
+        _choreService = choreService;
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetChore(int id, [FromQuery] char type = 'C')
+    {
+        var chore = await _choreService.GetChoreAsync(id, type);
+        if (chore == null)
+        {
+            return NotFound();
+        }
+        return Ok(chore);
+    }
+}
+
+// 7. Startup.cs (or Program.cs in .NET 6+)
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddControllers();
+    services.AddTransient<IChoreRepository, ChoreRepository>();
+    services.AddTransient<IChoreService, ChoreService>();
+
+    services.AddDbContext<YourDbContext>(options =>
+        options.UseSqlServer(Configuration.GetConnectionString("YourDatabaseConnection"))); // Replace YourDbContext
+
+    services.AddLogging(builder =>
+    {
+        builder.AddConsole(); // Or your preferred logging provider
+    });
+}
+
+// .NET 6+ Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddTransient<IChoreRepository, ChoreRepository>();
+builder.Services.AddTransient<IChoreService, ChoreService>();
+
+builder.Services.AddDbContext<YourDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("YourDatabaseConnection"))); // Replace YourDbContext
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Logging.AddConsole(); // Or your preferred logging provider
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
