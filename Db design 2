@@ -564,3 +564,71 @@ public class ChoreController : ControllerBase
 
     // ... (GetUserId method - same as before)
 }
+public async Task<int> ManageChoreAsync(int choreId, ChoreModel model, int createdBy)
+{
+    using (SqlConnection connection = new SqlConnection(_connectionString))
+    using (SqlCommand command = new SqlCommand("ManageChore", connection))
+    {
+        command.CommandType = CommandType.StoredProcedure;
+        command.Parameters.AddWithValue("@ChoreId", choreId);
+
+        // Handle NULLs correctly
+        if (model.ParentId.HasValue)
+        {
+            command.Parameters.AddWithValue("@ParentId", model.ParentId.Value);
+        }
+        else
+        {
+            command.Parameters.AddWithValue("@ParentId", DBNull.Value);
+        }
+
+        if (model.ChildId.HasValue)
+        {
+            command.Parameters.AddWithValue("@ChildId", model.ChildId.Value);
+        }
+        else
+        {
+            command.Parameters.AddWithValue("@ChildId", DBNull.Value);
+        }
+
+        command.Parameters.AddWithValue("@Title", model.Title ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@Description", model.Description ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@Reward", model.Reward ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@DueDate", model.DueDate ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@Category", model.Category ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@CommentText", model.CommentText ?? (object)DBNull.Value);
+
+        // Handle attachment parameters more carefully
+        if (model.Attachment != null) // Check for null IFormFile
+        {
+            command.Parameters.AddWithValue("@AttachmentType", model.Attachment.ContentType);
+            // Convert to byte array only if the stream is not null
+            using (var stream = model.Attachment.OpenReadStream())
+            using (var memoryStream = new MemoryStream())
+            {
+                await stream.CopyToAsync(memoryStream);
+                command.Parameters.AddWithValue("@AttachmentContent", memoryStream.ToArray());
+            }
+        }
+        else
+        {
+            command.Parameters.AddWithValue("@AttachmentType", DBNull.Value);
+            command.Parameters.AddWithValue("@AttachmentContent", DBNull.Value);
+        }
+
+        command.Parameters.AddWithValue("@Status", model.Status ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@CreatedBy", createdBy);
+
+        try
+        {
+            await connection.OpenAsync();
+            object result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error managing chore: {ChoreId}", choreId);
+            throw;
+        }
+    }
+}
