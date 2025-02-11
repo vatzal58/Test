@@ -323,3 +323,137 @@ builder.Services.AddTransient<IUserService, UserService>();
 
 builder.Services.AddDbContext<YourDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("YourDatabaseConnection")));
+
+
+-- Stored Procedure (GetChoreTemplates)
+CREATE PROCEDURE GetChoreTemplates
+AS
+BEGIN
+    SELECT 
+        Id,
+        Title,
+        Description,
+        Category
+    FROM ChoreTemplates;
+END;
+// 1. Interface (IChoreTemplateRepository.cs)
+public interface IChoreTemplateRepository
+{
+    Task<List<ChoreTemplate>> GetChoreTemplatesAsync();
+}
+
+// 2. Repository (ChoreTemplateRepository.cs)
+public class ChoreTemplateRepository : IChoreTemplateRepository
+{
+    private readonly string _connectionString;
+    private readonly ILogger<ChoreTemplateRepository> _logger; // Add logging
+
+    public ChoreTemplateRepository(IConfiguration configuration, ILogger<ChoreTemplateRepository> logger)
+    {
+        _connectionString = configuration.GetConnectionString("YourDatabaseConnection");
+        _logger = logger;
+    }
+
+    public async Task<List<ChoreTemplate>> GetChoreTemplatesAsync()
+    {
+        List<ChoreTemplate> choreTemplates = new List<ChoreTemplate>();
+
+        using (SqlConnection connection = new SqlConnection(_connectionString))
+        using (SqlCommand command = new SqlCommand("GetChoreTemplates", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+
+            try
+            {
+                await connection.OpenAsync();
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        choreTemplates.Add(new ChoreTemplate
+                        {
+                            Id = reader.GetInt32(0),
+                            Title = reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            Category = reader.IsDBNull(3) ? null : reader.GetString(3)
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetChoreTemplatesAsync");
+                throw; // Re-throw after logging
+            }
+        }
+
+        return choreTemplates;
+    }
+}
+
+// 3. Model (ChoreTemplate.cs)
+public class ChoreTemplate
+{
+    public int Id { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public string Category { get; set; }
+}
+
+// 4. Service (ChoreTemplateService.cs)
+public interface IChoreTemplateService
+{
+    Task<List<ChoreTemplate>> GetChoreTemplatesAsync();
+}
+
+public class ChoreTemplateService : IChoreTemplateService
+{
+    private readonly IChoreTemplateRepository _choreTemplateRepository;
+
+    public ChoreTemplateService(IChoreTemplateRepository choreTemplateRepository)
+    {
+        _choreTemplateRepository = choreTemplateRepository;
+    }
+
+    public async Task<List<ChoreTemplate>> GetChoreTemplatesAsync()
+    {
+        return await _choreTemplateRepository.GetChoreTemplatesAsync();
+    }
+}
+
+// 5. Controller (ChoreTemplateController.cs)
+[ApiController]
+[Route("api/[controller]")] // Use "api" prefix for better API organization
+public class ChoreTemplateController : ControllerBase
+{
+    private readonly IChoreTemplateService _choreTemplateService;
+
+    public ChoreTemplateController(IChoreTemplateService choreTemplateService)
+    {
+        _choreTemplateService = choreTemplateService;
+    }
+
+    [HttpGet] // No need for {id} since we're getting all templates
+    public async Task<IActionResult> GetChoreTemplates()
+    {
+        var choreTemplates = await _choreTemplateService.GetChoreTemplatesAsync();
+        return Ok(choreTemplates); // Return 200 OK with the list of templates
+    }
+}
+
+// 6. Startup.cs (or Program.cs in .NET 6+) - Add registrations
+public void ConfigureServices(IServiceCollection services)
+{
+    // ... other services
+
+    services.AddTransient<IChoreTemplateRepository, ChoreTemplateRepository>();
+    services.AddTransient<IChoreTemplateService, ChoreTemplateService>();
+}
+
+// .NET 6+ Program.cs:
+builder.Services.AddTransient<IChoreTemplateRepository, ChoreTemplateRepository>();
+builder.Services.AddTransient<IChoreTemplateService, ChoreTemplateService>();
+
+// Don't forget to add logging!
+builder.Logging.AddConsole(); // Or your preferred logging provider
+
