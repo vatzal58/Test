@@ -1,0 +1,80 @@
+public async Task<List<ChoreWithCommentsAndAttachments>> GetChoresAsync(int id, char type)
+{
+    List<ChoreWithCommentsAndAttachments> chores = new List<ChoreWithCommentsAndAttachments>();
+
+    using (SqlConnection connection = new SqlConnection(_connectionString))
+    using (SqlCommand command = new SqlCommand("GetChores", connection))
+    {
+        command.CommandType = CommandType.StoredProcedure;
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@Type", type);
+
+        try
+        {
+            await connection.OpenAsync();
+            using (SqlDataReader reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    ChoreWithCommentsAndAttachments chore = null; // Initialize inside the loop
+
+                    // Check if a new chore is starting
+                    if (reader.IsDBNull("ChoreId") || (chores.Count == 0 || chores[chores.Count - 1].ChoreId != reader.GetInt32("ChoreId")))
+                    {
+
+                        chore = new ChoreWithCommentsAndAttachments
+                        {
+                            ChoreId = reader.GetInt32("ChoreId"),
+                            ChoreTitle = reader.IsDBNull("ChoreTitle") ? null : reader.GetString("ChoreTitle"),
+                            ChoreDescription = reader.IsDBNull("ChoreDescription") ? null : reader.GetString("ChoreDescription"),
+                            ChoreReward = reader.IsDBNull("ChoreReward") ? null : (int?)reader.GetInt32("ChoreReward"),
+                            ChoreDueDate = reader.IsDBNull("ChoreDueDate") ? null : (DateTime?)reader.GetDateTime("ChoreDueDate"),
+                            ChoreCompletionDate = reader.IsDBNull("ChoreCompletionDate") ? null : (DateTime?)reader.GetDateTime("ChoreCompletionDate"),
+                            ChoreStatus = reader.IsDBNull("ChoreStatus") ? null : reader.GetString("ChoreStatus"),
+                            ChoreFrequency = reader.IsDBNull("ChoreFrequency") ? null : reader.GetString("ChoreFrequency"),
+                            ChoreCategory = reader.IsDBNull("ChoreCategory") ? null : reader.GetString("ChoreCategory"),
+                            ChoreCreatedAt = reader.IsDBNull("ChoreCreatedAt") ? null : reader.GetDateTime("ChoreCreatedAt"),
+                            ChoreCreatedBy = reader.IsDBNull("ChoreCreatedBy") ? null : (int?)reader.GetInt32("ChoreCreatedBy")
+                        };
+                        chores.Add(chore); // Add the new chore to the list
+                    }
+                    else
+                    {
+                        chore = chores[chores.Count - 1];
+                    }
+
+
+                    if (!reader.IsDBNull("CommentId"))
+                    {
+                        chore.Comments.Add(new ChoreWithCommentsAndAttachments.Comment
+                        {
+                            CommentId = reader.GetInt32("CommentId"),
+                            CommentText = reader.IsDBNull("CommentText") ? null : reader.GetString("CommentText"),
+                            CommentCreatedAt = reader.IsDBNull("CommentCreatedAt") ? null : reader.GetDateTime("CommentCreatedAt"),
+                            CommentCreatedBy = reader.IsDBNull("CommentCreatedBy") ? null : reader.GetString("CommentCreatedBy")
+                        });
+                    }
+
+                    if (!reader.IsDBNull("AttachmentId"))
+                    {
+                        chore.Attachments.Add(new ChoreWithCommentsAndAttachments.Attachment
+                        {
+                            AttachmentId = reader.GetInt32("AttachmentId"),
+                            AttachmentType = reader.IsDBNull("AttachmentType") ? null : reader.GetString("AttachmentType"),
+                            AttachmentContent = reader.IsDBNull("AttachmentContent") ? null : reader.GetSqlBytes("AttachmentContent").Value
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting chores: Id={Id}, Type={Type}", id, type);
+            throw;
+        }
+    }
+
+    return chores;
+}
+
+// ... (Rest of the repository code - ManageChoreAsync - same as before)
