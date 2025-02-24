@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import {
   Box,
@@ -15,60 +15,15 @@ import {
   Grid,
   Modal,
   Chip,
-  styled
+  styled,
+  CircularProgress,
+  Alert
 } from '@mui/material';
-
-// Mock data remains the same
-const mockChores = [
-  {
-    choreId: 1,
-    title: "Clean Room",
-    childId: 1,
-    childName: "Emma",
-    reward: 5,
-    dueDate: "2025-02-25",
-    status: "pending",
-    category: "Cleaning",
-    description: "Make bed, organize toys, vacuum floor"
-  },
-  {
-    choreId: 2,
-    title: "Do Homework",
-    childId: 2,
-    childName: "Liam",
-    reward: 3,
-    dueDate: "2025-02-23",
-    status: "completed",
-    category: "Academic",
-    description: "Complete math and reading assignments"
-  },
-  {
-    choreId: 3,
-    title: "Feed Pet",
-    childId: 1,
-    childName: "Emma",
-    reward: 2,
-    dueDate: "2025-02-22",
-    status: "pending",
-    category: "Pet Care",
-    description: "Feed dog and refresh water bowl"
-  },
-  {
-    choreId: 4,
-    title: "Take Out Trash",
-    childId: 2,
-    childName: "Liam",
-    reward: 4,
-    dueDate: "2025-02-24",
-    status: "pending",
-    category: "Cleaning",
-    description: "Empty all trash bins and replace bags"
-  }
-];
+import axios from 'axios';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-// Styled components
+// Styled components remain the same
 const ChildButton = styled(Button)(({ theme, selected }) => ({
   padding: theme.spacing(1, 2),
   borderRadius: theme.shape.borderRadius,
@@ -92,7 +47,17 @@ const StatusChip = styled(Chip)(({ theme, status }) => ({
   color: status === 'completed' ? theme.palette.success.dark : theme.palette.warning.dark,
 }));
 
+const LoadingContainer = styled(Box)({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: '200px',
+});
+
 const ParentChores = () => {
+  const [chores, setChores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedChildren, setSelectedChildren] = useState([]);
   const [selectedChore, setSelectedChore] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -100,18 +65,37 @@ const ParentChores = () => {
   const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
   const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
 
-  const children = [...new Set(mockChores.map(chore => chore.childName))];
-
   const rewardRanges = [
     { min: 0, max: 2, label: '$0-$2' },
     { min: 3, max: 4, label: '$3-$4' },
     { min: 5, max: Infinity, label: '$5+' }
   ];
 
-  // Filtering logic remains the same
+  // Fetch chores data
+  useEffect(() => {
+    const fetchChores = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('/api/chores'); // Replace with your API endpoint
+        setChores(response.data);
+        setError(null);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch chores');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChores();
+  }, []);
+
+  // Get unique children from the chores data
+  const children = [...new Set(chores.map(chore => chore.childName))];
+
+  // Filtering logic
   const childFilteredChores = selectedChildren.length > 0
-    ? mockChores.filter(chore => selectedChildren.includes(chore.childName))
-    : mockChores;
+    ? chores.filter(chore => selectedChildren.includes(chore.childName))
+    : chores;
 
   const filteredChores = childFilteredChores.filter(chore => {
     const categoryFilter = !selectedCategory || chore.category === selectedCategory;
@@ -120,7 +104,7 @@ const ParentChores = () => {
     return categoryFilter && rewardFilter;
   });
 
-  // Chart data calculations remain the same
+  // Chart data calculations
   const categoryData = Object.entries(
     childFilteredChores.reduce((acc, chore) => {
       acc[chore.category] = (acc[chore.category] || 0) + 1;
@@ -136,7 +120,7 @@ const ParentChores = () => {
     range
   }));
 
-  // Event handlers remain the same
+  // Event handlers
   const handleChildToggle = (childName) => {
     setSelectedChildren(prev =>
       prev.includes(childName)
@@ -163,6 +147,26 @@ const ParentChores = () => {
     }
     return hoveredPieIndex === index ? [70, 100] : [60, 90];
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <LoadingContainer>
+          <CircularProgress />
+        </LoadingContainer>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
