@@ -1,6 +1,359 @@
-echo "module.exports = { content: ['./src/**/*.{js,jsx,ts,tsx}'], theme: { extend: {} }, plugins: [], };" > tailwind.config.js
+import React, { useState } from 'react';
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts';
+import {
+  Box,
+  Button,
+  Container,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Grid,
+  Modal,
+  Chip,
+  styled
+} from '@mui/material';
 
-echo "module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };" > postcss.config.js
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+// Mock data remains the same
+const mockChores = [
+  {
+    choreId: 1,
+    title: "Clean Room",
+    childId: 1,
+    childName: "Emma",
+    reward: 5,
+    dueDate: "2025-02-25",
+    status: "pending",
+    category: "Cleaning",
+    description: "Make bed, organize toys, vacuum floor"
+  },
+  {
+    choreId: 2,
+    title: "Do Homework",
+    childId: 2,
+    childName: "Liam",
+    reward: 3,
+    dueDate: "2025-02-23",
+    status: "completed",
+    category: "Academic",
+    description: "Complete math and reading assignments"
+  },
+  {
+    choreId: 3,
+    title: "Feed Pet",
+    childId: 1,
+    childName: "Emma",
+    reward: 2,
+    dueDate: "2025-02-22",
+    status: "pending",
+    category: "Pet Care",
+    description: "Feed dog and refresh water bowl"
+  },
+  {
+    choreId: 4,
+    title: "Take Out Trash",
+    childId: 2,
+    childName: "Liam",
+    reward: 4,
+    dueDate: "2025-02-24",
+    status: "pending",
+    category: "Cleaning",
+    description: "Empty all trash bins and replace bags"
+  }
+];
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+// Styled components
+const ChildButton = styled(Button)(({ theme, selected }) => ({
+  padding: theme.spacing(1, 2),
+  borderRadius: theme.shape.borderRadius,
+  transition: 'all 0.2s',
+  backgroundColor: selected ? theme.palette.primary.main : theme.palette.grey[200],
+  color: selected ? theme.palette.primary.contrastText : theme.palette.text.primary,
+  '&:hover': {
+    backgroundColor: selected ? theme.palette.primary.dark : theme.palette.grey[300],
+  },
+  transform: selected ? 'scale(1.05)' : 'none',
+}));
+
+const ChartContainer = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  boxShadow: theme.shadows[1],
+}));
+
+const StatusChip = styled(Chip)(({ theme, status }) => ({
+  backgroundColor: status === 'completed' ? theme.palette.success.light : theme.palette.warning.light,
+  color: status === 'completed' ? theme.palette.success.dark : theme.palette.warning.dark,
+}));
+
+const ParentChores = () => {
+  const [selectedChildren, setSelectedChildren] = useState([]);
+  const [selectedChore, setSelectedChore] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedRewardRange, setSelectedRewardRange] = useState(null);
+  const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
+  const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
+
+  const children = [...new Set(mockChores.map(chore => chore.childName))];
+
+  const rewardRanges = [
+    { min: 0, max: 2, label: '$0-$2' },
+    { min: 3, max: 4, label: '$3-$4' },
+    { min: 5, max: Infinity, label: '$5+' }
+  ];
+
+  // Filtering logic remains the same
+  const childFilteredChores = selectedChildren.length > 0
+    ? mockChores.filter(chore => selectedChildren.includes(chore.childName))
+    : mockChores;
+
+  const filteredChores = childFilteredChores.filter(chore => {
+    const categoryFilter = !selectedCategory || chore.category === selectedCategory;
+    const rewardFilter = !selectedRewardRange || 
+      (chore.reward >= selectedRewardRange.min && chore.reward <= selectedRewardRange.max);
+    return categoryFilter && rewardFilter;
+  });
+
+  // Chart data calculations remain the same
+  const categoryData = Object.entries(
+    childFilteredChores.reduce((acc, chore) => {
+      acc[chore.category] = (acc[chore.category] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value }));
+
+  const rewardData = rewardRanges.map(range => ({
+    name: range.label,
+    value: childFilteredChores.filter(chore => 
+      chore.reward >= range.min && chore.reward <= range.max
+    ).length,
+    range
+  }));
+
+  // Event handlers remain the same
+  const handleChildToggle = (childName) => {
+    setSelectedChildren(prev =>
+      prev.includes(childName)
+        ? prev.filter(name => name !== childName)
+        : [...prev, childName]
+    );
+    setSelectedCategory(null);
+    setSelectedRewardRange(null);
+  };
+
+  const handleCategoryClick = (entry, index) => {
+    setSelectedCategory(prev => prev === entry.name ? null : entry.name);
+  };
+
+  const handleRewardRangeClick = (entry, index) => {
+    setSelectedRewardRange(prev => 
+      prev?.label === entry.range.label ? null : entry.range
+    );
+  };
+
+  const getPieRadius = (index) => {
+    if (selectedCategory) {
+      return categoryData[index].name === selectedCategory ? [70, 100] : [60, 90];
+    }
+    return hoveredPieIndex === index ? [70, 100] : [60, 90];
+  };
+
+  return (
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Box mb={3}>
+        <Typography variant="h4" component="h2" gutterBottom>
+          Chores Dashboard
+        </Typography>
+        <Box display="flex" gap={1} mb={2}>
+          {children.map(child => (
+            <ChildButton
+              key={child}
+              onClick={() => handleChildToggle(child)}
+              selected={selectedChildren.includes(child)}
+            >
+              {child}
+            </ChildButton>
+          ))}
+        </Box>
+      </Box>
+
+      <Grid container spacing={2} mb={3}>
+        <Grid item xs={12} md={6}>
+          <ChartContainer>
+            <Box display="flex" alignItems="center" mb={1}>
+              <Typography variant="h6">
+                Chores by Category
+              </Typography>
+              {selectedCategory && (
+                <Button
+                  size="small"
+                  onClick={() => setSelectedCategory(null)}
+                  sx={{ ml: 1 }}
+                >
+                  (Reset)
+                </Button>
+              )}
+            </Box>
+            <PieChart width={300} height={300}>
+              <Pie
+                data={categoryData}
+                cx={150}
+                cy={150}
+                dataKey="value"
+                onClick={handleCategoryClick}
+                onMouseEnter={(_, index) => setHoveredPieIndex(index)}
+                onMouseLeave={() => setHoveredPieIndex(null)}
+                animationDuration={300}
+              >
+                {categoryData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]}
+                    opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
+                    radius={getPieRadius(index)}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ChartContainer>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <ChartContainer>
+            <Box display="flex" alignItems="center" mb={1}>
+              <Typography variant="h6">
+                Chores by Reward Range
+              </Typography>
+              {selectedRewardRange && (
+                <Button
+                  size="small"
+                  onClick={() => setSelectedRewardRange(null)}
+                  sx={{ ml: 1 }}
+                >
+                  (Reset)
+                </Button>
+              )}
+            </Box>
+            <BarChart width={300} height={300} data={rewardData}>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar
+                dataKey="value"
+                onClick={handleRewardRangeClick}
+                onMouseEnter={(_, index) => setHoveredBarIndex(index)}
+                onMouseLeave={() => setHoveredBarIndex(null)}
+                animationDuration={300}
+              >
+                {rewardData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]}
+                    opacity={selectedRewardRange && selectedRewardRange.label !== entry.range.label ? 0.3 : 1}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </Grid>
+      </Grid>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Child</TableCell>
+              <TableCell>Reward</TableCell>
+              <TableCell>Due Date</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredChores.map(chore => (
+              <TableRow
+                key={chore.choreId}
+                onClick={() => setSelectedChore(chore)}
+                hover
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell>{chore.title}</TableCell>
+                <TableCell>{chore.childName}</TableCell>
+                <TableCell>${chore.reward}</TableCell>
+                <TableCell>{chore.dueDate}</TableCell>
+                <TableCell>
+                  <StatusChip
+                    label={chore.status}
+                    status={chore.status}
+                    size="small"
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Modal
+        open={Boolean(selectedChore)}
+        onClose={() => setSelectedChore(null)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Paper
+          sx={{
+            position: 'relative',
+            maxWidth: 400,
+            p: 3,
+            outline: 'none',
+          }}
+        >
+          {selectedChore && (
+            <>
+              <Typography variant="h5" gutterBottom>
+                {selectedChore.title}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Description:</strong> {selectedChore.description}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Category:</strong> {selectedChore.category}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Child:</strong> {selectedChore.childName}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Reward:</strong> ${selectedChore.reward}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Due Date:</strong> {selectedChore.dueDate}
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>Status:</strong> {selectedChore.status}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => setSelectedChore(null)}
+                sx={{ mt: 2 }}
+              >
+                Close
+              </Button>
+            </>
+          )}
+        </Paper>
+      </Modal>
+    </Container>
+  );
+};
+
+export default ParentChores;
