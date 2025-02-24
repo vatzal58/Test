@@ -1,0 +1,285 @@
+import React, { useState } from 'react';
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts';
+
+// Mock data remains the same
+const mockChores = [
+  {
+    choreId: 1,
+    title: "Clean Room",
+    childId: 1,
+    childName: "Emma",
+    reward: 5,
+    dueDate: "2025-02-25",
+    status: "pending",
+    category: "Cleaning",
+    description: "Make bed, organize toys, vacuum floor"
+  },
+  {
+    choreId: 2,
+    title: "Do Homework",
+    childId: 2,
+    childName: "Liam",
+    reward: 3,
+    dueDate: "2025-02-23",
+    status: "completed",
+    category: "Academic",
+    description: "Complete math and reading assignments"
+  },
+  {
+    choreId: 3,
+    title: "Feed Pet",
+    childId: 1,
+    childName: "Emma",
+    reward: 2,
+    dueDate: "2025-02-22",
+    status: "pending",
+    category: "Pet Care",
+    description: "Feed dog and refresh water bowl"
+  },
+  {
+    choreId: 4,
+    title: "Take Out Trash",
+    childId: 2,
+    childName: "Liam",
+    reward: 4,
+    dueDate: "2025-02-24",
+    status: "pending",
+    category: "Cleaning",
+    description: "Empty all trash bins and replace bags"
+  }
+];
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+const ParentChores = () => {
+  const [selectedChildren, setSelectedChildren] = useState([]);
+  const [selectedChore, setSelectedChore] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedRewardRange, setSelectedRewardRange] = useState(null);
+  const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
+  const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
+
+  const children = [...new Set(mockChores.map(chore => chore.childName))];
+
+  const rewardRanges = [
+    { min: 0, max: 2, label: '$0-$2' },
+    { min: 3, max: 4, label: '$3-$4' },
+    { min: 5, max: Infinity, label: '$5+' }
+  ];
+
+  // First apply child filter
+  const childFilteredChores = selectedChildren.length > 0
+    ? mockChores.filter(chore => selectedChildren.includes(chore.childName))
+    : mockChores;
+
+  // Then apply category and reward filters
+  const filteredChores = childFilteredChores.filter(chore => {
+    const categoryFilter = !selectedCategory || chore.category === selectedCategory;
+    const rewardFilter = !selectedRewardRange || 
+      (chore.reward >= selectedRewardRange.min && chore.reward <= selectedRewardRange.max);
+    return categoryFilter && rewardFilter;
+  });
+
+  // Calculate chart data based on child-filtered chores
+  const categoryData = Object.entries(
+    childFilteredChores.reduce((acc, chore) => {
+      acc[chore.category] = (acc[chore.category] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value }));
+
+  const rewardData = rewardRanges.map(range => ({
+    name: range.label,
+    value: childFilteredChores.filter(chore => 
+      chore.reward >= range.min && chore.reward <= range.max
+    ).length,
+    range
+  }));
+
+  const handleChildToggle = (childName) => {
+    setSelectedChildren(prev =>
+      prev.includes(childName)
+        ? prev.filter(name => name !== childName)
+        : [...prev, childName]
+    );
+    // Reset other filters when changing child selection
+    setSelectedCategory(null);
+    setSelectedRewardRange(null);
+  };
+
+  const handleCategoryClick = (entry, index) => {
+    if (selectedCategory === entry.name) {
+      setSelectedCategory(null);
+    } else {
+      setSelectedCategory(entry.name);
+    }
+  };
+
+  const handleRewardRangeClick = (entry, index) => {
+    if (selectedRewardRange && selectedRewardRange.label === entry.range.label) {
+      setSelectedRewardRange(null);
+    } else {
+      setSelectedRewardRange(entry.range);
+    }
+  };
+
+  const getPieRadius = (index) => {
+    if (selectedCategory) {
+      return categoryData[index].name === selectedCategory ? [70, 100] : [60, 90];
+    }
+    return hoveredPieIndex === index ? [70, 100] : [60, 90];
+  };
+
+  // Rest of the component remains the same
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Chores Dashboard</h2>
+        <div className="flex gap-2 mb-4">
+          {children.map(child => (
+            <button
+              key={child}
+              onClick={() => handleChildToggle(child)}
+              className={`px-4 py-2 rounded transition-all duration-200 ${
+                selectedChildren.includes(child)
+                  ? 'bg-blue-500 text-white scale-105'
+                  : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+            >
+              {child}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="p-4 bg-white rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2">
+            Chores by Category 
+            {selectedCategory && 
+              <button 
+                onClick={() => setSelectedCategory(null)}
+                className="text-sm text-blue-500 ml-2 hover:text-blue-700"
+              >
+                (Reset)
+              </button>
+            }
+          </h3>
+          <PieChart width={300} height={300}>
+            <Pie
+              data={categoryData}
+              cx={150}
+              cy={150}
+              dataKey="value"
+              onClick={handleCategoryClick}
+              onMouseEnter={(_, index) => setHoveredPieIndex(index)}
+              onMouseLeave={() => setHoveredPieIndex(null)}
+              animationDuration={300}
+            >
+              {categoryData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={COLORS[index % COLORS.length]}
+                  opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
+                  radius={getPieRadius(index)}
+                />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </div>
+
+        <div className="p-4 bg-white rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2">
+            Chores by Reward Range
+            {selectedRewardRange && 
+              <button 
+                onClick={() => setSelectedRewardRange(null)}
+                className="text-sm text-blue-500 ml-2 hover:text-blue-700"
+              >
+                (Reset)
+              </button>
+            }
+          </h3>
+          <BarChart width={300} height={300} data={rewardData}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar
+              dataKey="value"
+              onClick={handleRewardRangeClick}
+              onMouseEnter={(_, index) => setHoveredBarIndex(index)}
+              onMouseLeave={() => setHoveredBarIndex(null)}
+              animationDuration={300}
+            >
+              {rewardData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={COLORS[index % COLORS.length]}
+                  opacity={selectedRewardRange && selectedRewardRange.label !== entry.range.label ? 0.3 : 1}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Child</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reward</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredChores.map(chore => (
+              <tr
+                key={chore.choreId}
+                onClick={() => setSelectedChore(chore)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
+                <td className="px-6 py-4">{chore.title}</td>
+                <td className="px-6 py-4">{chore.childName}</td>
+                <td className="px-6 py-4">${chore.reward}</td>
+                <td className="px-6 py-4">{chore.dueDate}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    chore.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {chore.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {selectedChore && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg max-w-md">
+            <h3 className="text-xl font-bold mb-4">{selectedChore.title}</h3>
+            <p className="mb-2"><strong>Description:</strong> {selectedChore.description}</p>
+            <p className="mb-2"><strong>Category:</strong> {selectedChore.category}</p>
+            <p className="mb-2"><strong>Child:</strong> {selectedChore.childName}</p>
+            <p className="mb-2"><strong>Reward:</strong> ${selectedChore.reward}</p>
+            <p className="mb-2"><strong>Due Date:</strong> {selectedChore.dueDate}</p>
+            <p className="mb-4"><strong>Status:</strong> {selectedChore.status}</p>
+            <button
+              onClick={() => setSelectedChore(null)}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ParentChores;
