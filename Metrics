@@ -1,0 +1,129 @@
+CREATE PROCEDURE GetChores (
+    @Id INT,          -- Mandatory Id parameter
+    @Type CHAR(1) = 'C' -- 'C' for Chore, 'P' for Parent, 'CH' for Child
+)
+AS
+BEGIN
+    IF @Type = 'C'  -- Get chore by ChoreId
+    BEGIN
+        SELECT 
+            c.Id AS ChoreId,
+            c.Title AS ChoreTitle,
+            c.Description AS ChoreDescription,
+            c.Reward AS ChoreReward,
+            c.DueDate AS ChoreDueDate,
+            c.CompletionDate AS ChoreCompletionDate,
+            c.Status AS ChoreStatus,
+            c.Frequency AS ChoreFrequency,
+            c.Category AS ChoreCategory,
+            c.CreatedAt AS ChoreCreatedAt,
+            c.CreatedBy AS ChoreCreatedBy,
+            c.ChildId AS ChoreChildId,  -- Include ChildId
+            ch.Name AS ChoreChildName,    -- Include Child Name
+            com.Id AS CommentId,
+            com.Comment AS CommentText,
+            com.CreatedAt AS CommentCreatedAt,
+            u.Name AS CommentCreatedBy,
+            a.Id AS AttachmentId,
+            a.Type AS AttachmentType,
+            a.Attachment AS AttachmentContent
+        FROM Chores c
+        LEFT JOIN Comments com ON c.Id = com.ChoreId
+        LEFT JOIN Attachments a ON com.AttachmentId = a.Id
+        LEFT JOIN Users u ON com.CreatedBy = u.Id
+        LEFT JOIN Users ch ON c.ChildId = ch.Id -- Join with Users table for Child Name
+        WHERE c.Id = @Id
+        ORDER BY c.Id, com.CreatedAt;
+    END
+    ELSE IF @Type = 'P' -- Get chores by ParentId
+    BEGIN
+        SELECT 
+            c.Id AS ChoreId,
+            c.Title AS ChoreTitle,
+            c.Description AS ChoreDescription,
+            c.Reward AS ChoreReward,
+            c.DueDate AS ChoreDueDate,
+            c.CompletionDate AS ChoreCompletionDate,
+            c.Status AS ChoreStatus,
+            c.Frequency AS ChoreFrequency,
+            c.Category AS ChoreCategory,
+            c.CreatedAt AS ChoreCreatedAt,
+            c.CreatedBy AS ChoreCreatedBy,
+            c.ChildId AS ChoreChildId,  -- Include ChildId
+            ch.Name AS ChoreChildName,    -- Include Child Name
+            com.Id AS CommentId,
+            com.Comment AS CommentText,
+            com.CreatedAt AS CommentCreatedAt,
+            u.Name AS CommentCreatedBy,
+            a.Id AS AttachmentId,
+            a.Type AS AttachmentType,
+            a.Attachment AS AttachmentContent
+        FROM Chores c
+        LEFT JOIN Comments com ON c.Id = com.ChoreId
+        LEFT JOIN Attachments a ON com.AttachmentId = a.Id
+        LEFT JOIN Users u ON com.CreatedBy = u.Id
+        LEFT JOIN Users ch ON c.ChildId = ch.Id -- Join with Users table for Child Name
+        WHERE c.ParentId = @Id
+        ORDER BY c.Id, com.CreatedAt;
+    END
+    ELSE IF @Type = 'CH' -- Get chores by ChildId
+    BEGIN
+        SELECT 
+            c.Id AS ChoreId,
+            c.Title AS ChoreTitle,
+            c.Description AS ChoreDescription,
+            c.Reward AS ChoreReward,
+            c.DueDate AS ChoreDueDate,
+            c.CompletionDate AS ChoreCompletionDate,
+            c.Status AS ChoreStatus,
+            c.Frequency AS ChoreFrequency,
+            c.Category AS ChoreCategory,
+            c.CreatedAt AS ChoreCreatedAt,
+            c.CreatedBy AS ChoreCreatedBy,
+            c.ChildId AS ChoreChildId,  -- Include ChildId
+            ch.Name AS ChoreChildName,    -- Include Child Name
+            com.Id AS CommentId,
+            com.Comment AS CommentText,
+            com.CreatedAt AS CommentCreatedAt,
+            u.Name AS CommentCreatedBy,
+            a.Id AS AttachmentId,
+            a.Type AS AttachmentType,
+            a.Attachment AS AttachmentContent
+        FROM Chores c
+        LEFT JOIN Comments com ON c.Id = com.ChoreId
+        LEFT JOIN Attachments a ON com.AttachmentId = a.Id
+        LEFT JOIN Users u ON com.CreatedBy = u.Id
+        LEFT JOIN Users ch ON c.ChildId = ch.Id -- Join with Users table for Child Name
+        WHERE c.ChildId = @Id
+        ORDER BY c.Id, com.CreatedAt;
+    END
+END;
+
+public class ChoreWithCommentsAndAttachments
+{
+    // ... (Existing properties)
+    public int? ChoreChildId { get; set; } // Add ChildId
+    public string ChoreChildName { get; set; } // Add Child Name
+    // ... (Comments and Attachments)
+}
+
+public async Task<List<ChoreWithCommentsAndAttachments>> GetChoresAsync(int id, char type)
+{
+    // ... (Existing code)
+
+    while (await reader.ReadAsync())
+    {
+        // ... (Existing chore creation logic)
+
+        chore = new ChoreWithCommentsAndAttachments
+        {
+            // ... (Existing chore properties)
+            ChoreChildId = reader.IsDBNull("ChoreChildId") ? null : (int?)reader.GetInt32("ChoreChildId"), // Read ChildId
+            ChoreChildName = reader.IsDBNull("ChoreChildName") ? null : reader.GetString("ChoreChildName"), // Read ChildName
+        };
+
+        //... (rest of the code)
+    }
+
+    // ... (Rest of the repository code)
+}
