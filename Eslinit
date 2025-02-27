@@ -1,0 +1,5 @@
+npm install --save-dev eslint eslint-plugin-react @typescript-eslint/parser @typescript-eslint/eslint-plugin
+
+{ "env": { "browser": true, "es2021": true }, "extends": [ "eslint:recommended", "plugin:react/recommended", "plugin:@typescript-eslint/recommended" ], "parser": "@typescript-eslint/parser", "parserOptions": { "ecmaVersion": 12, "sourceType": "module" }, "plugins": ["react", "@typescript-eslint"], "rules": { "@typescript-eslint/naming-convention": [ "error", { "selector": "variable", "format": ["camelCase"] }, { "selector": "function", "format": ["camelCase"] }, { "selector": "parameter", "format": ["camelCase"], "leadingUnderscore": "allow" }, { "selector": "typeLike", "format": ["PascalCase"] } ] }, "settings": { "react": { "version": "detect" } } }
+
+{ "extends": [ "eslint:recommended", "plugin:react/recommended", "plugin:@typescript-eslint/recommended", "plugin:prettier/recommended" ], "plugins": ["react", "@typescript-eslint", "prettier"] }
