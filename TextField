@@ -1,10 +1,15 @@
 import { TextField } from "@mui/material";
 
+const formatDate = (date: Date | null) => {
+  if (!date) return "";
+  return date.toISOString().split("T")[0]; // Converts Date to "yyyy-MM-dd"
+};
+
 <TextField
   label="Due Date"
   type="date"
-  value={fnewChore.dueDate}
-  onChange={(e) => setNewChore({ ...fnewChore, dueDate: e.target.value })}
+  value={formatDate(fnewChore.dueDate)}
+  onChange={(e) => setNewChore({ ...fnewChore, dueDate: new Date(e.target.value) })}
   fullWidth
   margin="dense"
   InputLabelProps={{ shrink: true }}
