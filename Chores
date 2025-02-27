@@ -1,0 +1,899 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Button,
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Grid,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Divider,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Tab,
+  Tabs,
+  AppBar,
+  Toolbar,
+  Container,
+  Fab,
+  useMediaQuery,
+  Badge,
+  Paper,
+  InputAdornment,
+  Tooltip,
+  FormHelperText,
+  CircularProgress
+} from '@mui/material';
+import { styled, useTheme } from '@mui/material/styles';
+import {
+  Add as AddIcon,
+  WaterDrop as WaterDropIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  CheckCircle as CheckCircleIcon,
+  AccessTime as AccessTimeIcon,
+  Category as CategoryIcon,
+  Person as PersonIcon,
+  Comment as CommentIcon,
+  AttachFile as AttachFileIcon,
+  Send as SendIcon,
+  CheckBox as CheckBoxIcon,
+  Template as TemplateIcon,
+  Star as StarIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  SortByAlpha as SortByAlphaIcon,
+  Close as CloseIcon,
+  MoreVert as MoreVertIcon,
+  MenuOpen as MenuOpenIcon,
+} from '@mui/icons-material';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+
+// Mock data for initial state and templates
+const MOCK_CHILDREN = [
+  { id: 1, name: "Eva Garcia" },
+  { id: 2, name: "Noah Smith" },
+  { id: 3, name: "Liam Johnson" },
+  { id: 4, name: "Olivia Williams" },
+];
+
+const MOCK_CATEGORIES = [
+  "Gardening",
+  "Cleaning",
+  "Kitchen",
+  "Homework",
+  "Pet Care",
+  "Laundry",
+  "Outdoor"
+];
+
+const CHORE_TEMPLATES = [
+  { 
+    title: "Water to plants in Garden", 
+    description: "Water all plants in the garden, ensure soil is moist but not flooded", 
+    category: "Gardening",
+    reward: 30
+  },
+  { 
+    title: "Clean bathroom", 
+    description: "Clean sink, toilet, shower, and mop floor", 
+    category: "Cleaning",
+    reward: 40
+  },
+  { 
+    title: "Wash dishes", 
+    description: "Wash all dishes, pots and pans, dry and put away", 
+    category: "Kitchen",
+    reward: 20
+  },
+  { 
+    title: "Feed pets", 
+    description: "Feed all pets according to their feeding schedule and refresh water", 
+    category: "Pet Care",
+    reward: 15
+  }
+];
+
+// Styled components
+const StyledFab = styled(Fab)(({ theme }) => ({
+  position: 'fixed',
+  bottom: theme.spacing(2),
+  right: theme.spacing(2),
+}));
+
+const ChoreStatusChip = styled(Chip)(({ theme, status }) => {
+  let color;
+  switch (status) {
+    case 'Completed':
+      color = theme.palette.success.main;
+      break;
+    case 'Pending':
+      color = theme.palette.warning.main;
+      break;
+    case 'Approved':
+      color = theme.palette.success.dark;
+      break;
+    case 'Rejected':
+      color = theme.palette.error.main;
+      break;
+    default:
+      color = theme.palette.grey[500];
+  }
+  
+  return {
+    backgroundColor: color,
+    color: theme.palette.getContrastText(color),
+    fontWeight: 'bold',
+  };
+});
+
+// Main component
+const ChoresManagement = ({ userType = "parent" }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [chores, setChores] = useState([]);
+  const [selectedChoreId, setSelectedChoreId] = useState(null);
+  const [openChoreDialog, setOpenChoreDialog] = useState(false);
+  const [openCommentDialog, setOpenCommentDialog] = useState(false);
+  const [openTemplateDialog, setOpenTemplateDialog] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [attachment, setAttachment] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('dueDate');
+  const [sortOrder, setSortOrder] = useState('asc');
+  
+  const [newChore, setNewChore] = useState({
+    id: null,
+    title: '',
+    description: '',
+    reward: 0,
+    childId: '',
+    childName: '',
+    dueDate: new Date(),
+    status: 'Pending',
+    category: '',
+    frequency: null,
+    comments: []
+  });
+  
+  // Load initial data
+  useEffect(() => {
+    // In a real app, you'd fetch this from an API
+    const initialChores = [
+      {
+        choreId: 5,
+        choreTitle: "Water to plants in Garden",
+        choreDescription: "string",
+        choreReward: 30,
+        choreDueDate: "2025-02-27T00:00:00",
+        choreCompletionDate: null,
+        choreStatus: "Pending",
+        choreFrequency: null,
+        choreCategory: "Gardening",
+        choreCreatedAt: "2025-02-27T16:01:17.7",
+        choreChildId: 3,
+        choreChildName: "Eva Garcia",
+        choreCreatedBy: 1,
+        comments: [
+          {
+            commentId: 1,
+            commentText: "Do proper gardening",
+            commentCreatedAt: "2025-02-27T16:07:22.837",
+            commentCreatedBy: "Alice Johnson",
+            attachmentId: 1,
+            attachmentFileName: "example.txt",
+            attachmentType: "text/plain",
+            attachmentContent: "SGVsbG8sIHdvcmxkIQ=="
+          },
+          {
+            commentId: 2,
+            commentText: "Another comment without attachment",
+            commentCreatedAt: "2025-02-27T16:36:40.933",
+            commentCreatedBy: "Alice Johnson"
+          }
+        ]
+      }
+    ];
+    
+    setChores(initialChores);
+  }, []);
+  
+  const handleOpenChoreDialog = (choreId = null) => {
+    if (choreId) {
+      const choreToEdit = chores.find(chore => chore.choreId === choreId);
+      setNewChore({
+        id: choreToEdit.choreId,
+        title: choreToEdit.choreTitle,
+        description: choreToEdit.choreDescription,
+        reward: choreToEdit.choreReward,
+        childId: choreToEdit.choreChildId,
+        childName: choreToEdit.choreChildName,
+        dueDate: new Date(choreToEdit.choreDueDate),
+        status: choreToEdit.choreStatus,
+        category: choreToEdit.choreCategory,
+        frequency: choreToEdit.choreFrequency,
+        comments: choreToEdit.comments
+      });
+      setSelectedChoreId(choreId);
+    } else {
+      setNewChore({
+        id: null,
+        title: '',
+        description: '',
+        reward: 0,
+        childId: '',
+        childName: '',
+        dueDate: new Date(),
+        status: 'Pending',
+        category: '',
+        frequency: null,
+        comments: []
+      });
+      setSelectedChoreId(null);
+    }
+    setOpenChoreDialog(true);
+  };
+  
+  const handleOpenTemplateDialog = () => {
+    setOpenTemplateDialog(true);
+  };
+  
+  const handleSelectTemplate = (template) => {
+    setNewChore({
+      ...newChore,
+      title: template.title,
+      description: template.description,
+      category: template.category,
+      reward: template.reward
+    });
+    setOpenTemplateDialog(false);
+  };
+  
+  const handleChoreSubmit = () => {
+    const currentDate = new Date().toISOString();
+    
+    if (selectedChoreId) {
+      // Update existing chore
+      const updatedChores = chores.map(chore => 
+        chore.choreId === selectedChoreId ? 
+        {
+          ...chore,
+          choreTitle: newChore.title,
+          choreDescription: newChore.description,
+          choreReward: newChore.reward,
+          choreChildId: newChore.childId,
+          choreChildName: newChore.childName,
+          choreDueDate: newChore.dueDate.toISOString(),
+          choreCategory: newChore.category,
+          choreFrequency: newChore.frequency
+        } : chore
+      );
+      setChores(updatedChores);
+    } else {
+      // Create new chore
+      const newChoreId = Math.max(...chores.map(c => c.choreId), 0) + 1;
+      const choreToAdd = {
+        choreId: newChoreId,
+        choreTitle: newChore.title,
+        choreDescription: newChore.description,
+        choreReward: newChore.reward,
+        choreChildId: newChore.childId,
+        choreChildName: MOCK_CHILDREN.find(child => child.id === newChore.childId)?.name || '',
+        choreDueDate: newChore.dueDate.toISOString(),
+        choreCompletionDate: null,
+        choreStatus: "Pending",
+        choreFrequency: newChore.frequency,
+        choreCategory: newChore.category,
+        choreCreatedAt: currentDate,
+        choreCreatedBy: 1, // Assume parent ID is 1
+        comments: []
+      };
+      setChores([...chores, choreToAdd]);
+    }
+    
+    setOpenChoreDialog(false);
+    resetNewChore();
+  };
+  
+  const handleOpenCommentDialog = (choreId) => {
+    setSelectedChoreId(choreId);
+    setCommentText('');
+    setAttachment(null);
+    setOpenCommentDialog(true);
+  };
+  
+  const handleCommentSubmit = () => {
+    if (!commentText.trim()) return;
+    
+    const currentDate = new Date().toISOString();
+    const commentCreator = userType === 'parent' ? 'Alice Johnson' : 'Eva Garcia';
+    
+    const newComment = {
+      commentId: Math.max(...chores.flatMap(c => c.comments.map(comment => comment.commentId)), 0) + 1,
+      commentText: commentText,
+      commentCreatedAt: currentDate,
+      commentCreatedBy: commentCreator,
+      ...(attachment && {
+        attachmentId: Math.max(...chores.flatMap(c => c.comments.filter(com => com.attachmentId).map(com => com.attachmentId)), 0) + 1,
+        attachmentFileName: attachment.name,
+        attachmentType: attachment.type,
+        attachmentContent: "SGVsbG8sIHdvcmxkIQ==" // In a real app, this would be the base64 encoded file
+      })
+    };
+    
+    const updatedChores = chores.map(chore => 
+      chore.choreId === selectedChoreId ? 
+      {
+        ...chore,
+        comments: [...chore.comments, newComment]
+      } : chore
+    );
+    
+    setChores(updatedChores);
+    setOpenCommentDialog(false);
+    setCommentText('');
+    setAttachment(null);
+  };
+  
+  const handleStatusChange = (choreId, newStatus) => {
+    const updatedChores = chores.map(chore => 
+      chore.choreId === choreId ? 
+      {
+        ...chore,
+        choreStatus: newStatus,
+        ...(newStatus === 'Completed' && { choreCompletionDate: new Date().toISOString() })
+      } : chore
+    );
+    setChores(updatedChores);
+  };
+  
+  const resetNewChore = () => {
+    setNewChore({
+      id: null,
+      title: '',
+      description: '',
+      reward: 0,
+      childId: '',
+      childName: '',
+      dueDate: new Date(),
+      status: 'Pending',
+      category: '',
+      frequency: null,
+      comments: []
+    });
+  };
+  
+  const handleAttachmentChange = (event) => {
+    if (event.target.files && event.target.files[0]) {
+      setAttachment(event.target.files[0]);
+    }
+  };
+  
+  // Filter and sort chores for display
+  const filteredChores = chores
+    .filter(chore => {
+      if (filterStatus !== 'all' && chore.choreStatus !== filterStatus) return false;
+      
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        chore.choreTitle.toLowerCase().includes(searchLower) ||
+        chore.choreDescription.toLowerCase().includes(searchLower) ||
+        chore.choreCategory.toLowerCase().includes(searchLower) ||
+        chore.choreChildName.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      let valueA, valueB;
+      
+      // Determine which values to compare based on sortBy
+      switch (sortBy) {
+        case 'dueDate':
+          valueA = new Date(a.choreDueDate);
+          valueB = new Date(b.choreDueDate);
+          break;
+        case 'reward':
+          valueA = a.choreReward;
+          valueB = b.choreReward;
+          break;
+        case 'title':
+          valueA = a.choreTitle;
+          valueB = b.choreTitle;
+          break;
+        default:
+          valueA = a.choreId;
+          valueB = b.choreId;
+      }
+      
+      // Sort by the selected property
+      if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  return (
+    <Box sx={{ flexGrow: 1, height: '100vh', overflow: 'hidden' }}>
+      {/* App bar with title and filter options */}
+      <AppBar position="static" color="primary">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            {userType === 'parent' ? 'Manage Chores' : 'My Chores'}
+          </Typography>
+          
+          <IconButton color="inherit" onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+            <SortByAlphaIcon />
+          </IconButton>
+          
+          <IconButton color="inherit" onClick={() => {}}>
+            <FilterListIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+      
+      {/* Search Box */}
+      <Box sx={{ p: 2, backgroundColor: theme.palette.background.paper }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search chores..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
+      </Box>
+      
+      {/* Filter Tabs */}
+      <Paper sx={{ width: '100%' }}>
+        <Tabs
+          value={filterStatus}
+          onChange={(e, newValue) => setFilterStatus(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          <Tab label="All" value="all" />
+          <Tab label="Pending" value="Pending" />
+          <Tab label="Completed" value="Completed" />
+          <Tab label="Approved" value="Approved" />
+        </Tabs>
+      </Paper>
+      
+      {/* Chores List */}
+      <Container sx={{ py: 2, flexGrow: 1, overflow: 'auto' }}>
+        <Grid container spacing={2}>
+          {filteredChores.length === 0 ? (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="h6" color="textSecondary">
+                  No chores found
+                </Typography>
+                {userType === 'parent' && (
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    startIcon={<AddIcon />}
+                    onClick={() => handleOpenChoreDialog()}
+                    sx={{ mt: 2 }}
+                  >
+                    Add a chore
+                  </Button>
+                )}
+              </Paper>
+            </Grid>
+          ) : (
+            filteredChores.map(chore => (
+              <Grid item xs={12} sm={6} md={4} key={chore.choreId}>
+                <Card 
+                  elevation={3}
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.02)'
+                    }
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="h6" component="div" noWrap>
+                        {chore.choreTitle}
+                      </Typography>
+                      <ChoreStatusChip 
+                        label={chore.choreStatus} 
+                        size="small" 
+                        status={chore.choreStatus}
+                      />
+                    </Box>
+                    
+                    <Divider sx={{ my: 1 }} />
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <CategoryIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {chore.choreCategory}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <PersonIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {chore.choreChildName}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <AccessTimeIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Due: {new Date(chore.choreDueDate).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <StarIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Reward: {chore.choreReward} points
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                      <Badge badgeContent={chore.comments.length} color="secondary">
+                        <Button 
+                          size="small" 
+                          startIcon={<CommentIcon />} 
+                          onClick={() => handleOpenCommentDialog(chore.choreId)}
+                        >
+                          Comments
+                        </Button>
+                      </Badge>
+                      
+                      {userType === 'parent' ? (
+                        <>
+                          <Button 
+                            size="small"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleOpenChoreDialog(chore.choreId)}
+                          >
+                            Edit
+                          </Button>
+                          {chore.choreStatus === 'Completed' && (
+                            <Button 
+                              size="small"
+                              color="success"
+                              startIcon={<CheckCircleIcon />}
+                              onClick={() => handleStatusChange(chore.choreId, 'Approved')}
+                            >
+                              Approve
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        chore.choreStatus === 'Pending' && (
+                          <Button 
+                            size="small"
+                            color="success"
+                            startIcon={<CheckBoxIcon />}
+                            onClick={() => handleStatusChange(chore.choreId, 'Completed')}
+                          >
+                            Mark Complete
+                          </Button>
+                        )
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          )}
+        </Grid>
+      </Container>
+      
+      {/* Floating Action Button for adding new chores (Parent only) */}
+      {userType === 'parent' && (
+        <StyledFab color="primary" aria-label="add" onClick={() => handleOpenChoreDialog()}>
+          <AddIcon />
+        </StyledFab>
+      )}
+      
+      {/* New/Edit Chore Dialog */}
+      <Dialog 
+        open={openChoreDialog} 
+        onClose={() => {
+          setOpenChoreDialog(false);
+          resetNewChore();
+        }}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={isMobile}
+      >
+        <DialogTitle>
+          {selectedChoreId ? 'Edit Chore' : 'Create New Chore'}
+          {isMobile && (
+            <IconButton
+              aria-label="close"
+              onClick={() => setOpenChoreDialog(false)}
+              sx={{ position: 'absolute', right: 8, top: 8 }}
+            >
+              <CloseIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
+        
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Title"
+                fullWidth
+                value={newChore.title}
+                onChange={(e) => setNewChore({...newChore, title: e.target.value})}
+                required
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                margin="dense"
+                label="Description"
+                fullWidth
+                multiline
+                rows={3}
+                value={newChore.description}
+                onChange={(e) => setNewChore({...newChore, description: e.target.value})}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={newChore.category}
+                  onChange={(e) => setNewChore({...newChore, category: e.target.value})}
+                  label="Category"
+                >
+                  {MOCK_CATEGORIES.map((category) => (
+                    <MenuItem key={category} value={category}>{category}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Assign To</InputLabel>
+                <Select
+                  value={newChore.childId}
+                  onChange={(e) => setNewChore({
+                    ...newChore, 
+                    childId: e.target.value,
+                    childName: MOCK_CHILDREN.find(c => c.id === e.target.value)?.name || ''
+                  })}
+                  label="Assign To"
+                >
+                  {MOCK_CHILDREN.map((child) => (
+                    <MenuItem key={child.id} value={child.id}>{child.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                margin="dense"
+                label="Reward Points"
+                type="number"
+                fullWidth
+                value={newChore.reward}
+                onChange={(e) => setNewChore({...newChore, reward: parseInt(e.target.value) || 0})}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DateTimePicker
+                  label="Due Date"
+                  value={newChore.dueDate}
+                  onChange={(newDate) => setNewChore({...newChore, dueDate: newDate})}
+                  slotProps={{ textField: { fullWidth: true, margin: 'dense' } }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Box display="flex" justifyContent="center" mt={1}>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<TemplateIcon />}
+                  onClick={handleOpenTemplateDialog}
+                >
+                  Use Template
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={() => setOpenChoreDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={handleChoreSubmit} 
+            variant="contained" 
+            color="primary"
+            disabled={!newChore.title || !newChore.childId}
+          >
+            {selectedChoreId ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Template Selection Dialog */}
+      <Dialog
+        open={openTemplateDialog}
+        onClose={() => setOpenTemplateDialog(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Choose a Template</DialogTitle>
+        <List sx={{ pt: 0 }}>
+          {CHORE_TEMPLATES.map((template, index) => (
+            <ListItem button onClick={() => handleSelectTemplate(template)} key={index}>
+              <ListItemAvatar>
+                <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                  <CategoryIcon />
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText 
+                primary={template.title} 
+                secondary={`${template.category} - ${template.reward} points`} 
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Dialog>
+      
+      {/* Comment Dialog */}
+      <Dialog
+        open={openCommentDialog}
+        onClose={() => setOpenCommentDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          Comments
+          <IconButton
+            aria-label="close"
+            onClick={() => setOpenCommentDialog(false)}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent dividers>
+          {selectedChoreId && (
+            <>
+              <List sx={{ mb: 2 }}>
+                {chores.find(c => c.choreId === selectedChoreId)?.comments.map((comment) => (
+                  <ListItem 
+                    key={comment.commentId}
+                    alignItems="flex-start" 
+                    sx={{ 
+                      bgcolor: theme.palette.background.default,
+                      borderRadius: 1,
+                      mb: 1
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar>{comment.commentCreatedBy.charAt(0)}</Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography component="span" variant="body1">
+                          {comment.commentCreatedBy}
+                          <Typography component="span" variant="caption" sx={{ ml: 1 }}>
+                            {new Date(comment.commentCreatedAt).toLocaleString()}
+                          </Typography>
+                        </Typography>
+                      }
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2" sx={{ display: 'block' }}>
+                            {comment.commentText}
+                          </Typography>
+                          {comment.attachmentId && (
+                            <Button
+                              size="small"
+                              startIcon={<AttachFileIcon />}
+                              sx={{ mt: 1 }}
+                              onClick={() => {}} // In a real app, this would download the attachment
+                            >
+                              {comment.attachmentFileName}
+                            </Button>
+                          )}
+                        </>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+              
+              <Box component="form" noValidate>
+                <TextField
+                  label="Add a comment"
+                  multiline
+                  rows={2}
+                  fullWidth
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  margin="normal"
+                />
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                  <Button
+                    component="label"
+                    startIcon={<AttachFileIcon />}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    Attach File
+                    <input
+                      type="file"
+                      hidden
+                      onChange={handleAttachmentChange}
+                    />
+                  </Button>
+                  
+                  {attachment && (
+                    <Chip
+                      label={attachment.name}
+                      onDelete={() => setAttachment(null)}
+                      size="small"
+                    />
+                  )}
+                </Box>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          <Button
+            onClick={handleCommentSubmit}
+            variant="contained"
+            endIcon={<SendIcon />}
+            disabled={!commentText.trim()}
+          >
+            Send
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default ChoresManagement;
