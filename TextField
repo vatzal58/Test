@@ -1,0 +1,11 @@
+import { TextField } from "@mui/material";
+
+<TextField
+  label="Due Date"
+  type="date"
+  value={fnewChore.dueDate}
+  onChange={(e) => setNewChore({ ...fnewChore, dueDate: e.target.value })}
+  fullWidth
+  margin="dense"
+  InputLabelProps={{ shrink: true }}
+/>
