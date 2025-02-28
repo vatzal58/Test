@@ -1,0 +1,50 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+
+const FileUpload = () => {
+    const [file, setFile] = useState(null);
+
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFile({
+                    fileName: selectedFile.name,
+                    fileContentBase64: reader.result.split(',')[1] // Remove the data URL prefix
+                });
+            };
+            reader.readAsDataURL(selectedFile); // Convert file to base64
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!file) {
+            alert("Please select a file.");
+            return;
+        }
+
+        try {
+            const response = await axios.post('https://your-api-url/api/file/upload', file, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            alert(response.data);
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            alert("Failed to upload file.");
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input type="file" onChange={handleFileChange} />
+            <button type="submit">Upload</button>
+        </form>
+    );
+};
+
+export default FileUpload;
