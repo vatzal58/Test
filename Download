@@ -1,0 +1,58 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+
+const FileDownload = () => {
+    const [fileId, setFileId] = useState('');
+
+    const handleDownload = async () => {
+        if (!fileId) {
+            alert("Please enter a file ID.");
+            return;
+        }
+
+        try {
+            const response = await axios.get(`https://your-api-url/api/file/download/${fileId}`);
+
+            const { fileName, fileContentBase64 } = response.data;
+
+            // Decode the base64 string to a binary array
+            const binaryString = atob(fileContentBase64);
+            const byteArray = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                byteArray[i] = binaryString.charCodeAt(i);
+            }
+
+            // Create a Blob from the byte array
+            const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+
+            // Create a download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+
+            // Clean up
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error downloading file:", error);
+            alert("Failed to download file.");
+        }
+    };
+
+    return (
+        <div>
+            <input
+                type="text"
+                placeholder="Enter File ID"
+                value={fileId}
+                onChange={(e) => setFileId(e.target.value)}
+            />
+            <button onClick={handleDownload}>Download File</button>
+        </div>
+    );
+};
+
+export default FileDownload;
