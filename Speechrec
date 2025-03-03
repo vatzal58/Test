@@ -1,0 +1,256 @@
+import { useState, useEffect, useCallback } from 'react';
+
+/**
+ * Custom hook for speech recognition
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.continuous - Whether recognition should continue after results are returned
+ * @param {string} options.lang - Language for recognition (default: 'en-US')
+ * @param {boolean} options.interimResults - Whether to return interim results (default: true)
+ * @param {number} options.maxAlternatives - Maximum number of alternatives for each result (default: 1)
+ * @param {function} options.onFinalTranscript - Callback when final transcript is available
+ * @returns {Object} Speech recognition state and controls
+ */
+const useSpeechRecognition = ({
+  continuous = false,
+  lang = 'en-US',
+  interimResults = true,
+  maxAlternatives = 1,
+  onFinalTranscript = null,
+} = {}) => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [error, setError] = useState(null);
+  const [recognition, setRecognition] = useState(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setError(new Error('Speech recognition is not supported in this browser.'));
+      return;
+    }
+
+    const recognitionInstance = new SpeechRecognition();
+    
+    // Configure recognition
+    recognitionInstance.continuous = continuous;
+    recognitionInstance.lang = lang;
+    recognitionInstance.interimResults = interimResults;
+    recognitionInstance.maxAlternatives = maxAlternatives;
+    
+    setRecognition(recognitionInstance);
+    
+    // Cleanup
+    return () => {
+      if (recognitionInstance) {
+        recognitionInstance.stop();
+      }
+    };
+  }, [continuous, lang, interimResults, maxAlternatives]);
+
+  // Set up event listeners
+  useEffect(() => {
+    if (!recognition) return;
+    
+    const handleResult = (event) => {
+      let interimText = '';
+      let finalText = '';
+
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalText += result[0].transcript;
+        } else {
+          interimText += result[0].transcript;
+        }
+      }
+
+      setInterimTranscript(interimText);
+      
+      if (finalText) {
+        setTranscript(prev => prev + ' ' + finalText.trim());
+      }
+    };
+
+    const handleEnd = () => {
+      setIsListening(false);
+      
+      if (onFinalTranscript && transcript) {
+        onFinalTranscript(transcript.trim());
+      }
+    };
+
+    const handleError = (event) => {
+      setError(event.error);
+      setIsListening(false);
+    };
+
+    // Attach event listeners
+    recognition.onresult = handleResult;
+    recognition.onend = handleEnd;
+    recognition.onerror = handleError;
+
+    return () => {
+      // Detach event listeners
+      recognition.onresult = null;
+      recognition.onend = null;
+      recognition.onerror = null;
+    };
+  }, [recognition, transcript, onFinalTranscript]);
+
+  // Start listening
+  const startListening = useCallback(() => {
+    if (!recognition) return;
+    
+    try {
+      recognition.start();
+      setIsListening(true);
+      setError(null);
+      setInterimTranscript('');
+      setTranscript('');
+    } catch (err) {
+      setError(err);
+    }
+  }, [recognition]);
+
+  // Stop listening
+  const stopListening = useCallback(() => {
+    if (!recognition) return;
+    
+    try {
+      recognition.stop();
+      setIsListening(false);
+    } catch (err) {
+      setError(err);
+    }
+  }, [recognition]);
+
+  // Reset the transcription
+  const resetTranscript = useCallback(() => {
+    setTranscript('');
+    setInterimTranscript('');
+  }, []);
+
+  return {
+    isListening,
+    transcript,
+    interimTranscript,
+    error,
+    startListening,
+    stopListening,
+    resetTranscript,
+    supported: !!recognition
+  };
+};
+
+export default useSpeechRecognition;
+
+import React, { useEffect, useState } from 'react';
+import useSpeechRecognition from './useSpeechRecognition';
+
+const SpeechToTextComponent = () => {
+  const [isSending, setIsSending] = useState(false);
+  const [result, setResult] = useState('');
+
+  // Function to send transcript to API
+  const sendToAPI = async (transcriptText) => {
+    if (!transcriptText || !transcriptText.trim()) return;
+    
+    try {
+      setIsSending(true);
+      
+      // Here you would normally call your API
+      // This is just a simulated API call
+      console.log('Sending to API:', transcriptText);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setResult(`Successfully processed: "${transcriptText}"`);
+    } catch (error) {
+      console.error('Error sending transcript:', error);
+      setResult('Failed to process transcript');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Initialize the speech recognition hook with callback for completed transcripts
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    error,
+    startListening,
+    stopListening,
+    resetTranscript,
+    supported
+  } = useSpeechRecognition({
+    continuous: true,
+    lang: 'en-US',
+    onFinalTranscript: (finalTranscript) => {
+      // This callback is triggered automatically when speech recognition stops
+      console.log('Final transcript ready, sending to API:', finalTranscript);
+      sendToAPI(finalTranscript);
+    }
+  });
+
+  if (!supported) {
+    return <div>Speech recognition is not supported in your browser.</div>;
+  }
+
+  return (
+    <div className="speech-recognition-container">
+      <h2>Speech Recognition Demo</h2>
+      
+      {error && (
+        <div className="error">
+          Error: {error.message || 'Something went wrong'}
+        </div>
+      )}
+      
+      <div className="controls">
+        <button 
+          onClick={isListening ? stopListening : startListening}
+          disabled={isSending}
+        >
+          {isListening ? 'Stop Listening' : 'Start Listening'}
+        </button>
+        
+        <button 
+          onClick={resetTranscript}
+          disabled={isListening || isSending || !transcript}
+        >
+          Reset
+        </button>
+      </div>
+      
+      <div className="transcription-area">
+        <h3>Transcription:</h3>
+        <div className="transcript">
+          {transcript}
+          <span className="interim">{interimTranscript}</span>
+        </div>
+      </div>
+      
+      {isListening && (
+        <div className="status">Listening...</div>
+      )}
+      
+      {isSending && (
+        <div className="status">Sending to API...</div>
+      )}
+      
+      {result && (
+        <div className="result">
+          {result}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SpeechToTextComponent;
