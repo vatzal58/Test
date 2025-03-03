@@ -1,0 +1,42 @@
+# Define application paths for 32-bit and 64-bit installations
+$path32bit = "C:\Program Files (x86)\YourApplication\YourApp.exe"  # 32-bit path
+$path64bit = "C:\Program Files\YourApplication\YourApp.exe"        # 64-bit path
+
+# Check if the application exists at either the 32-bit or 64-bit location
+if (Test-Path $path32bit -or Test-Path $path64bit) {
+    Write-Host "Application found."
+
+    # Stop IIS (Internet Information Services)
+    Write-Host "Stopping IIS..."
+    iisreset /stop
+
+    # Check if IIS stopped successfully
+    if ($?) {
+        Write-Host "IIS stopped successfully."
+
+        # Search registry for uninstallation string in both 32-bit and 64-bit registry locations
+        $uninstallKey32 = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse | Where-Object {
+            $_.GetValue("DisplayName", "") -eq "YourApplication"  # Replace with the actual application name
+        }
+
+        $uninstallKey64 = Get-ChildItem -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse | Where-Object {
+            $_.GetValue("DisplayName", "") -eq "YourApplication"  # Replace with the actual application name
+        }
+
+        # Combine both registry searches
+        $uninstallKey = $uninstallKey32 + $uninstallKey64
+
+        if ($uninstallKey) {
+            # Get the uninstall string from the registry and execute it
+            $uninstallString = $uninstallKey.GetValue("UninstallString")
+            Write-Host "Uninstalling application..."
+            Start-Process -FilePath $uninstallString -ArgumentList "/quiet" -Wait  # Modify arguments as needed
+        } else {
+            Write-Host "Uninstall entry not found in registry."
+        }
+    } else {
+        Write-Host "Failed to stop IIS."
+    }
+} else {
+    Write-Host "Application not found at the specified locations."
+}
