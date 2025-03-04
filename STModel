@@ -1,0 +1,335 @@
+import spacy
+import json
+from flask import Flask, request, jsonify
+import re
+from datetime import datetime, timedelta
+
+# Load SpaCy English model
+nlp = spacy.load("en_core_web_sm")
+
+app = Flask(__name__)
+
+class ImprovedChoreParser:
+    def __init__(self):
+        # Define chore categories with associated keywords
+        self.categories = {
+            "cleaning": ["clean", "dust", "vacuum", "mop", "scrub", "sweep", "wipe", "wash", "tidy"],
+            "bedroom": ["bed", "sheets", "pillow", "blanket", "bedroom"],
+            "bathroom": ["toilet", "shower", "bath", "sink", "bathroom"],
+            "kitchen": ["dishes", "kitchen", "countertop", "stove", "oven", "fridge", "garbage", "trash"],
+            "laundry": ["clothes", "laundry", "fold", "iron", "washing"],
+            "outside": ["yard", "lawn", "garden", "mow", "rake", "leaves", "snow", "shovel"],
+            "pets": ["dog", "cat", "feed", "walk", "pet", "litter"],
+            "homework": ["homework", "study", "reading", "practice", "school", "assignment"],
+            "organization": ["organize", "sort", "arrange", "declutter", "put away"],
+            "other": []  # Default category
+        }
+        
+        # Common date-related words
+        self.date_keywords = {
+            "today": 0,
+            "tonight": 0,
+            "tomorrow": 1,
+            "next day": 1,
+            "day after tomorrow": 2,
+            "weekend": [5, 6],  # Saturday and Sunday
+        }
+        
+        # Time of day approximations
+        self.time_of_day = {
+            "morning": "09:00",
+            "afternoon": "15:00",
+            "evening": "19:00",
+            "night": "21:00",
+            "noon": "12:00",
+            "midnight": "00:00",
+            "dinner": "18:00",
+            "breakfast": "08:00",
+            "lunch": "13:00",
+            "bedtime": "21:00"
+        }
+        
+        # Days of the week
+        self.days_of_week = {
+            "monday": 0, "tuesday": 1, "wednesday": 2, 
+            "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6
+        }
+        
+        # Common action verbs related to chores
+        self.action_verbs = [
+            "need", "has", "have", "must", "should", "will", "is", "are",
+            "clean", "take", "wash", "fold", "vacuum", "mop", "organize",
+            "feed", "walk", "water", "mow", "sweep", "dust", "empty",
+            "put", "set", "help", "finish", "complete"
+        ]
+
+    def extract_chore_description(self, doc):
+        """Extract the main chore description from the text"""
+        # Try to find verb + object pairs which likely describe the core task
+        for token in doc:
+            if token.pos_ == "VERB" and token.lemma_ not in ["be", "have", "do"]:
+                # Find direct objects of the verb
+                obj_text = ""
+                for child in token.children:
+                    if child.dep_ in ["dobj", "pobj"]:
+                        # Include the object and any of its modifiers
+                        modifiers = []
+                        for grandchild in child.children:
+                            if grandchild.dep_ in ["amod", "compound", "det"]:
+                                modifiers.append(grandchild.text)
+                        
+                        obj_phrase = " ".join(modifiers + [child.text])
+                        obj_text = f"{token.lemma_} {obj_phrase}".strip()
+                        break
+                
+                if obj_text:
+                    return obj_text
+        
+        # Fallback: Look for infinitive verbs (to clean, to take, etc.)
+        for token in doc:
+            if token.dep_ == "xcomp" and token.pos_ == "VERB":
+                for child in token.children:
+                    if child.dep_ in ["dobj", "pobj"]:
+                        return f"{token.lemma_} {child.text}"
+        
+        # Second fallback: return the first 5-10 words as description
+        return " ".join([token.text for token in doc[:min(10, len(doc))]])
+
+    def determine_category(self, doc):
+        """Determine the category of the chore"""
+        text_lower = doc.text.lower()
+        best_match = "other"
+        max_matches = 0
+        
+        for category, keywords in self.categories.items():
+            matches = sum(1 for keyword in keywords if keyword in text_lower)
+            if matches > max_matches:
+                max_matches = matches
+                best_match = category
+                
+        return best_match
+
+    def extract_child_assignee(self, doc):
+        """Extract the child assigned to the task with improved name recognition"""
+        # First check for specific SpaCy named entities (PERSON)
+        for ent in doc.ents:
+            if ent.label_ == "PERSON":
+                return ent.text
+        
+        # If no PERSON entity found, try to find the subject of the sentence
+        # This is especially good for names at the beginning of sentences
+        for token in doc:
+            # Look for the subject of the sentence
+            if token.dep_ == "nsubj" and token.pos_ == "PROPN":
+                # Get the whole name if it's multiple tokens
+                name_parts = [token.text]
+                for child in token.children:
+                    if child.pos_ == "PROPN" and child.dep_ == "compound":
+                        name_parts.insert(0, child.text)
+                return " ".join(name_parts)
+        
+        # Check for the first proper noun in the sentence
+        for token in doc:
+            if token.pos_ == "PROPN" and token.i < 3:  # Within the first 3 tokens
+                # Check if this token is followed by a common chore-related verb
+                next_tokens = [t.lemma_ for t in doc[token.i+1:token.i+3]]
+                if any(verb in next_tokens for verb in self.action_verbs):
+                    return token.text
+                    
+        # Look for possessive pronouns that might indicate a child
+        for token in doc:
+            if token.text.lower() in ["your", "his", "her", "their"]:
+                for child in token.children:
+                    if child.pos_ == "NOUN":
+                        return f"{token.text} {child.text}"
+                        
+        # Look for pronouns that might be referring to a child
+        pronouns = ["he", "she", "they", "him", "her", "them"]
+        for token in doc:
+            if token.text.lower() in pronouns:
+                return token.text
+        
+        # Last resort: check if the first word in the sentence is capitalized and not a common word
+        first_word = doc[0].text
+        common_words = ["the", "a", "an", "this", "that", "these", "those", "when", "if", "then"]
+        if first_word.istitle() and first_word.lower() not in common_words:
+            return first_word
+        
+        # If we can't find a specific assignee
+        return "Unassigned"
+
+    def extract_due_date(self, doc):
+        """Extract due date information and return a standardized date format YYYY-MM-DD"""
+        text_lower = doc.text.lower()
+        today = datetime.now()
+        due_date = today  # Default to today if no date is specified
+        time_str = "23:59"  # Default end of day
+        has_date = False
+        
+        # Process specific dates from entities
+        for ent in doc.ents:
+            if ent.label_ == "DATE":
+                try:
+                    # Try parsing common date formats
+                    date_text = ent.text.lower()
+                    
+                    # Handle days of week in entities
+                    for day_name, day_num in self.days_of_week.items():
+                        if day_name in date_text:
+                            today_weekday = today.weekday()
+                            days_until_day = (day_num - today_weekday) % 7
+                            # If the day is today and already passed, move to next week
+                            if days_until_day == 0 and datetime.now().hour >= 12:
+                                days_until_day = 7
+                            due_date = today + timedelta(days=days_until_day)
+                            has_date = True
+                            break
+                    
+                    # Handle "this weekend", "next week", etc.
+                    if "weekend" in date_text:
+                        today_weekday = today.weekday()
+                        days_until_saturday = (5 - today_weekday) % 7
+                        due_date = today + timedelta(days=days_until_saturday)
+                        has_date = True
+                    elif "next week" in date_text:
+                        due_date = today + timedelta(days=7)
+                        has_date = True
+                    elif "month" in date_text:
+                        due_date = today + timedelta(days=30)
+                        has_date = True
+                        
+                    # If we couldn't parse it, continue to other methods
+                    if not has_date:
+                        continue
+                        
+                except (ValueError, TypeError):
+                    # If parsing fails, continue to other methods
+                    continue
+        
+        # Check for relative dates if no entity was found
+        if not has_date:
+            for keyword, day_offset in self.date_keywords.items():
+                if keyword in text_lower:
+                    if isinstance(day_offset, list):
+                        # Handle weekend case
+                        today_weekday = today.weekday()
+                        days_until_saturday = (5 - today_weekday) % 7
+                        due_date = today + timedelta(days=days_until_saturday)
+                    else:
+                        due_date = today + timedelta(days=day_offset)
+                    has_date = True
+                    break
+        
+        # Check for days of week if no relative date was found
+        if not has_date:
+            for day_name, day_num in self.days_of_week.items():
+                if day_name in text_lower:
+                    today_weekday = today.weekday()
+                    days_until_day = (day_num - today_weekday) % 7
+                    # If the day is today and already passed, move to next week
+                    if days_until_day == 0 and datetime.now().hour >= 12:
+                        days_until_day = 7
+                    due_date = today + timedelta(days=days_until_day)
+                    has_date = True
+                    break
+        
+        # Check for specific time patterns (e.g., "5pm")
+        time_pattern = r"\b(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?\b"
+        time_match = re.search(time_pattern, doc.text)
+        if time_match:
+            hour = int(time_match.group(1))
+            minute = time_match.group(2) or "00"
+            period = (time_match.group(3) or "").lower()
+            
+            # Adjust hour for PM
+            if period == "pm" and hour < 12:
+                hour += 12
+            elif period == "am" and hour == 12:
+                hour = 0
+                
+            time_str = f"{hour:02d}:{minute}"
+        else:
+            # Check for time of day references
+            for time_ref, time_val in self.time_of_day.items():
+                if time_ref in text_lower:
+                    time_str = time_val
+                    break
+        
+        # Combine date and time
+        return f"{due_date.strftime('%Y-%m-%d')}T{time_str}:00"
+
+    def extract_reward_amount(self, text):
+        """Extract the reward amount from the text if explicitly mentioned"""
+        # Look for patterns like "$10", "10 dollars", "10 bucks", etc.
+        reward_pattern = r"\$(\d+)|(\d+)\s*(dollars|bucks)"
+        match = re.search(reward_pattern, text)
+        if match:
+            # Extract the numeric value from the match
+            reward = match.group(1) or match.group(2)
+            return int(reward)
+        return None  # Return None if no reward is found
+
+    def parse_chore(self, text):
+        """Parse a chore task description into the required fields"""
+        doc = nlp(text)
+        
+        chore_data = {
+            "chore_description": self.extract_chore_description(doc),
+            "category": self.determine_category(doc),
+            "child_assignee": self.extract_child_assignee(doc),
+            "due_date": self.extract_due_date(doc),
+            "reward_amount": self.extract_reward_amount(text)  # Extract reward amount
+        }
+        
+        return chore_data
+
+# Create an instance of the parser
+parser = ImprovedChoreParser()
+
+@app.route('/parse', methods=['POST'])
+def parse_chore():
+    """API endpoint to parse a chore task"""
+    data = request.json
+    
+    if not data or 'chore' not in data:
+        return jsonify({"error": "Missing chore text"}), 400
+    
+    chore_text = data['chore']
+    parsed_data = parser.parse_chore(chore_text)
+    
+    return jsonify(parsed_data)
+
+@app.route('/batch_parse', methods=['POST'])
+def batch_parse_chores():
+    """API endpoint to parse multiple chore tasks"""
+    data = request.json
+    
+    if not data or 'chores' not in data:
+        return jsonify({"error": "Missing chores list"}), 400
+    
+    chores = data['chores']
+    parsed_chores = [parser.parse_chore(chore) for chore in chores]
+    
+    return jsonify({"chores": parsed_chores})
+
+@app.route('/test', methods=['GET'])
+def test_examples():
+    """Test endpoint with pre-defined examples"""
+    test_sentences = [
+        "Jack needs to take out the trash by tomorrow evening for $5.",
+        "Emma should clean her bedroom before Saturday for 10 dollars.",
+        "Noah must finish his homework tonight after dinner for $7.",
+        "Sophia is responsible for walking the dog every morning this week for 3 bucks.",
+        "Liam forgot to fold his laundry yesterday, he needs to do it by 5pm today for $4.",
+        "Olivia will vacuum the living room carpet next Monday for 8 dollars.",
+        "Mason has to wash the dishes right after breakfast tomorrow for $6.",
+        "Ava should organize her bookshelf sometime this weekend for 5 bucks.",
+        "Ethan is assigned to mow the lawn on Friday afternoon for $12.",
+        "Isabella needs to clean the bathroom sink before her friends come over on Thursday for $9."
+    ]
+    
+    results = [parser.parse_chore(sentence) for sentence in test_sentences]
+    return jsonify({"test_results": results})
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
