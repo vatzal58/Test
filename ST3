@@ -1,0 +1,53 @@
+import React, { useState } from "react";
+import { useSpeechRecognition } from "react-speech-kit";
+import axios from "axios";
+
+const SpeechRecognitionComponent = () => {
+  const [text, setText] = useState(""); // Stores the transcribed text
+  const [isListening, setIsListening] = useState(false); // Tracks if recording is active
+
+  // Configure speech recognition
+  const { listen, stop } = useSpeechRecognition({
+    onResult: (result) => {
+      // Append new transcribed text to the existing text
+      setText((prevText) => prevText + " " + result);
+    },
+  });
+
+  // Start recording
+  const startRecording = () => {
+    setText(""); // Clear previous text
+    setIsListening(true);
+    listen(); // Start listening
+  };
+
+  // Stop recording and send text to API
+  const stopRecording = async () => {
+    setIsListening(false);
+    stop(); // Stop listening
+
+    // Send the transcribed text to an API
+    try {
+      const response = await axios.post("https://your-api-endpoint.com/transcribe", {
+        text: text,
+      });
+      console.log("API Response:", response.data);
+    } catch (error) {
+      console.error("Error sending text to API:", error);
+    }
+  };
+
+  return (
+    <div>
+      <h1>Speech Recognition</h1>
+      <p>{text}</p>
+      {!isListening ? (
+        <button onClick={startRecording}>Start Recording</button>
+      ) : (
+        <button onClick={stopRecording}>Stop Recording</button>
+      )}
+    </div>
+  );
+};
+
+export default SpeechRecognitionComponent;
