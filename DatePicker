@@ -1,341 +1,316 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TextField, 
-  IconButton, 
-  Popover, 
-  Box,
-  Grid,
-  Button,
-  Typography,
+  InputAdornment, 
+  IconButton,
+  Popover,
   Paper,
-  Select,
-  MenuItem,
-  InputAdornment,
-  useTheme
+  Typography,
+  styled
 } from '@mui/material';
-import CalendarIcon from '@mui/icons-material/CalendarMonth';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { 
-  format, 
-  parse, 
-  isValid, 
-  addMonths, 
-  subMonths, 
-  addYears,
-  subYears,
-  startOfMonth, 
-  endOfMonth, 
-  eachDayOfInterval, 
-  isSameDay, 
-  isToday,
-  getYear,
-  setYear
-} from 'date-fns';
+  CalendarToday as CalendarIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon 
+} from '@mui/icons-material';
 
+// Define interface for the component props
 interface DatePickerProps {
-  value: Date | null;
-  onChange: (date: Date | null) => void;
-  label?: string;
-  disabled?: boolean;
-  required?: boolean;
-  error?: boolean;
-  helperText?: string;
-  fullWidth?: boolean;
-  /**
-   * Function to determine if a date should be disabled
-   * @param date The date to check
-   * @returns boolean True if the date should be disabled
-   */
-  shouldDisableDate?: (date: Date) => boolean;
-  /**
-   * Min selectable date
-   */
-  minDate?: Date;
-  /**
-   * Max selectable date
-   */
-  maxDate?: Date;
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+  disabledDates?: (date: Date) => boolean;
+  placeholder?: string;
 }
 
-const DatePicker: React.FC<DatePickerProps> = ({
-  value,
-  onChange,
-  label = 'Date',
-  disabled = false,
-  required = false,
-  error = false,
-  helperText = '',
-  fullWidth = false,
-  shouldDisableDate,
-  minDate,
-  maxDate,
+// Styled components
+const StyledTextField = styled(TextField)({
+  '& .MuiInputBase-input': {
+    fontSize: '1.2rem',
+  },
+});
+
+const CalendarContainer = styled(Paper)({
+  padding: '16px',
+  width: '320px',
+});
+
+const CalendarHeader = styled('div')({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '16px',
+});
+
+const DaysGrid = styled('div')({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(7, 1fr)',
+  gap: '8px',
+});
+
+const DayCell = styled('div')<{ isSelected?: boolean; isDisabled?: boolean; isCurrentMonth?: boolean }>(
+  ({ isSelected, isDisabled, isCurrentMonth }) => ({
+    width: '35px',
+    height: '35px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: isDisabled ? 'default' : 'pointer',
+    borderRadius: '50%',
+    backgroundColor: isSelected ? '#1976d2' : 'transparent',
+    color: 
+      isDisabled ? '#ccc' : 
+      !isCurrentMonth ? '#999' :
+      isSelected ? 'white' : 'inherit',
+    '&:hover': {
+      backgroundColor: isDisabled ? 'transparent' : isSelected ? '#1976d2' : '#f5f5f5',
+    },
+  })
+);
+
+const WeekdayHeader = styled('div')({
+  width: '35px',
+  height: '35px',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontWeight: 'bold',
+});
+
+const DatePicker: React.FC<DatePickerProps> = ({ 
+  value, 
+  onChange, 
+  disabledDates,
+  placeholder = 'MM/DD/YYYY'
 }) => {
-  const theme = useTheme();
-  
-  // State for the text input
+  // Internal state
   const [inputValue, setInputValue] = useState<string>('');
-  
-  // State for calendar popover
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const open = Boolean(anchorEl);
-  
-  // State for tracking input errors
-  const [inputError, setInputError] = useState<string>('');
-  
-  // State for current month in calendar
-  const [currentMonth, setCurrentMonth] = useState<Date>(value ? new Date(value) : new Date());
-  
-  // Available years for selection (20 years before and after current year)
-  const currentYear = getYear(new Date());
-  const yearRange = Array.from(
-    { length: 41 }, 
-    (_, i) => currentYear - 20 + i
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [currentMonth, setCurrentMonth] = useState<Date>(
+    value ? new Date(value) : new Date()
   );
   
-  // Update input value when the date value changes externally
+  // Effect to update input value when the external value changes
   useEffect(() => {
-    if (value) {
-      setInputValue(format(value, 'MM/dd/yyyy'));
-      setCurrentMonth(value);
+    if (value !== undefined) {
+      const date = new Date(value);
+      setInputValue(formatDate(date));
     } else {
       setInputValue('');
     }
   }, [value]);
-  
-  // Handle click to open calendar
-  const handleCalendarOpen = (event: React.MouseEvent<HTMLElement>) => {
-    // Use currentTarget instead of target to get the button element
-    setAnchorEl(event.currentTarget as HTMLButtonElement);
-    // Reset current month to the selected date or today
-    setCurrentMonth(value || new Date());
+
+  // Helper functions
+  const formatDate = (date: Date): string => {
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
   };
-  
-  // Handle calendar close
+
+  const parseDate = (dateString: string): number | undefined => {
+    // Check if the format is valid MM/DD/YYYY
+    const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+    if (!regex.test(dateString)) return undefined;
+
+    const [month, day, year] = dateString.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    // Validate that the date is real (handles cases like 02/31/2023)
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return undefined;
+    }
+    
+    return date.getTime();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newInputValue = e.target.value;
+    setInputValue(newInputValue);
+    
+    // If the input matches the expected format, update the value
+    if (newInputValue.length === 10) {
+      const timestamp = parseDate(newInputValue);
+      onChange(timestamp);
+    } else if (newInputValue === '') {
+      onChange(undefined);
+    }
+  };
+
+  const handleCalendarOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+    // If there's a value, set the calendar to that month
+    if (value) {
+      setCurrentMonth(new Date(value));
+    }
+  };
+
   const handleCalendarClose = () => {
     setAnchorEl(null);
   };
-  
-  // Check if date should be disabled
-  const isDateDisabled = (date: Date): boolean => {
-    if (minDate && date < minDate) return true;
-    if (maxDate && date > maxDate) return true;
-    if (shouldDisableDate && shouldDisableDate(date)) return true;
-    return false;
+
+  const handleDateSelect = (day: number, month: number, year: number) => {
+    const selectedDate = new Date(year, month, day);
+    const timestamp = selectedDate.getTime();
+    onChange(timestamp);
+    handleCalendarClose();
   };
-  
-  // Handle date selection from calendar
-  const handleDateSelect = (date: Date) => {
-    if (!isDateDisabled(date)) {
-      onChange(date);
-      handleCalendarClose();
-    }
-  };
-  
-  // Handle text input change
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-    setInputValue(newValue);
-    
-    // Clear previous error
-    setInputError('');
-    
-    // If empty and not required, clear the date
-    if (!newValue.trim()) {
-      onChange(null);
-      return;
-    }
-    
-    // Try to parse the input as a date
-    if (newValue.length === 10) { // Full date entered (MM/DD/YYYY)
-      const parsedDate = parse(newValue, 'MM/dd/yyyy', new Date());
-      
-      if (isValid(parsedDate)) {
-        // Check if date is in allowed range
-        if (isDateDisabled(parsedDate)) {
-          setInputError('This date is not available for selection');
-        } else {
-          onChange(parsedDate);
-        }
-      } else {
-        setInputError('Invalid date format. Use MM/DD/YYYY');
-      }
-    }
-  };
-  
-  // Handle blur event to validate incomplete dates
-  const handleBlur = () => {
-    if (inputValue && inputValue.length > 0 && inputValue.length < 10) {
-      setInputError('Please enter a complete date in MM/DD/YYYY format');
-    } else if (inputValue.length === 10) {
-      const parsedDate = parse(inputValue, 'MM/dd/yyyy', new Date());
-      if (!isValid(parsedDate)) {
-        setInputError('Invalid date format. Use MM/DD/YYYY');
-      } else if (isDateDisabled(parsedDate)) {
-        setInputError('This date is not available for selection');
-      }
-    }
-  };
-  
-  // Navigation for calendar
+
   const handlePrevMonth = () => {
-    setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() - 1);
+      return newMonth;
+    });
   };
-  
+
   const handleNextMonth = () => {
-    setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
-  };
-  
-  const handlePrevYear = () => {
-    setCurrentMonth(prevMonth => subYears(prevMonth, 1));
-  };
-  
-  const handleNextYear = () => {
-    setCurrentMonth(prevMonth => addYears(prevMonth, 1));
-  };
-  
-  // Handle year selection
-  const handleYearChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    const year = event.target.value as number;
-    setCurrentMonth(prevMonth => setYear(prevMonth, year));
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() + 1);
+      return newMonth;
+    });
   };
 
-  // Generate calendar days
-  const getDaysInMonth = () => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  };
-
-  // Get day of week (0-6, where 0 is Sunday)
-  const getFirstDayOffset = () => {
-    return startOfMonth(currentMonth).getDay();
-  };
-
-  // Generate weekday headers
-  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-  // Create calendar UI
-  const renderCalendar = () => {
-    const days = getDaysInMonth();
-    const firstDayOffset = getFirstDayOffset();
-    const totalSlots = days.length + firstDayOffset;
-    const rows = Math.ceil(totalSlots / 7);
-
-    let calendarDays = [];
-    let dayIndex = 0;
-
-    for (let row = 0; row < rows; row++) {
-      let weekRow = [];
-      for (let col = 0; col < 7; col++) {
-        const dayPosition = row * 7 + col;
-        if (dayPosition < firstDayOffset || dayIndex >= days.length) {
-          // Empty cell
-          weekRow.push(
-            <Grid item key={`empty-${row}-${col}`} xs={1} sx={{ textAlign: 'center' }}>
-              <Box sx={{ minWidth: 36, height: 36 }} />
-            </Grid>
-          );
-        } else {
-          const day = days[dayIndex];
-          const isSelected = value ? isSameDay(day, value) : false;
-          const isTodayDate = isToday(day);
-          const isDisabled = isDateDisabled(day);
-          
-          weekRow.push(
-            <Grid item key={`day-${dayIndex}`} xs={1} sx={{ textAlign: 'center' }}>
-              <Button
-                onClick={() => handleDateSelect(day)}
-                variant={isSelected ? "contained" : "text"}
-                color={isTodayDate && !isSelected ? "primary" : "inherit"}
-                disabled={isDisabled}
-                sx={{
-                  minWidth: 36,
-                  height: 36,
-                  padding: 0,
-                  borderRadius: '50%',
-                  fontWeight: isTodayDate ? 'bold' : 'normal',
-                  color: isDisabled 
-                    ? theme.palette.text.disabled 
-                    : isSelected 
-                      ? theme.palette.primary.contrastText 
-                      : theme.palette.text.primary,
-                  '&:hover': {
-                    backgroundColor: isDisabled 
-                      ? 'transparent' 
-                      : isSelected 
-                        ? theme.palette.primary.dark 
-                        : theme.palette.action.hover,
-                  },
-                  '&.Mui-disabled': {
-                    color: theme.palette.text.disabled,
-                    textDecoration: 'line-through',
-                    opacity: 0.6,
-                  }
-                }}
-              >
-                {format(day, 'd')}
-              </Button>
-            </Grid>
-          );
-          dayIndex++;
-        }
-      }
-      calendarDays.push(
-        <Grid container key={`week-${row}`} spacing={1} justifyContent="center">
-          {weekRow}
-        </Grid>
+  // Calendar generation
+  const generateCalendar = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    // Get first day of the month
+    const firstDay = new Date(year, month, 1);
+    // Get the day of the week (0 = Sunday, 1 = Monday, etc.)
+    const firstDayOfWeek = firstDay.getDay();
+    
+    // Get the number of days in the month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Get the days from the previous month to fill the first row
+    const daysFromPrevMonth = firstDayOfWeek;
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    
+    // Get the selected date (if any)
+    const selectedDate = value ? new Date(value) : null;
+    const selectedDay = selectedDate?.getDate();
+    const selectedMonth = selectedDate?.getMonth();
+    const selectedYear = selectedDate?.getFullYear();
+    
+    // Create calendar days
+    const days = [];
+    
+    // Days from previous month
+    for (let i = daysFromPrevMonth - 1; i >= 0; i--) {
+      const day = prevMonthDays - i;
+      const prevMonth = month === 0 ? 11 : month - 1;
+      const prevYear = month === 0 ? year - 1 : year;
+      const date = new Date(prevYear, prevMonth, day);
+      
+      const isDisabled = disabledDates ? disabledDates(date) : false;
+      
+      days.push(
+        <DayCell 
+          key={`prev-${day}`}
+          isCurrentMonth={false}
+          isDisabled={isDisabled}
+          onClick={() => {
+            if (!isDisabled) {
+              handleDateSelect(day, prevMonth, prevYear);
+            }
+          }}
+        >
+          {day}
+        </DayCell>
       );
     }
-
-    return calendarDays;
+    
+    // Days from current month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const isSelected = 
+        day === selectedDay && 
+        month === selectedMonth && 
+        year === selectedYear;
+      const isDisabled = disabledDates ? disabledDates(date) : false;
+      
+      days.push(
+        <DayCell 
+          key={`current-${day}`}
+          isSelected={isSelected}
+          isDisabled={isDisabled}
+          isCurrentMonth={true}
+          onClick={() => {
+            if (!isDisabled) {
+              handleDateSelect(day, month, year);
+            }
+          }}
+        >
+          {day}
+        </DayCell>
+      );
+    }
+    
+    // Fill the remaining cells with days from the next month
+    const totalCells = 42; // 6 rows of 7 days
+    const remainingCells = totalCells - days.length;
+    
+    for (let day = 1; day <= remainingCells; day++) {
+      const nextMonth = month === 11 ? 0 : month + 1;
+      const nextYear = month === 11 ? year + 1 : year;
+      const date = new Date(nextYear, nextMonth, day);
+      
+      const isDisabled = disabledDates ? disabledDates(date) : false;
+      
+      days.push(
+        <DayCell 
+          key={`next-${day}`}
+          isCurrentMonth={false}
+          isDisabled={isDisabled}
+          onClick={() => {
+            if (!isDisabled) {
+              handleDateSelect(day, nextMonth, nextYear);
+            }
+          }}
+        >
+          {day}
+        </DayCell>
+      );
+    }
+    
+    return days;
   };
 
+  const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const open = Boolean(anchorEl);
+  const id = open ? 'date-picker-popover' : undefined;
+
   return (
-    <Box sx={{ width: fullWidth ? '100%' : 'auto' }}>
-      <TextField
-        label={label}
+    <>
+      <StyledTextField
+        fullWidth
         value={inputValue}
         onChange={handleInputChange}
-        onBlur={handleBlur}
-        disabled={disabled}
-        required={required}
-        error={error || !!inputError}
-        helperText={inputError || helperText}
-        fullWidth={fullWidth}
-        placeholder="MM/DD/YYYY"
+        placeholder={placeholder}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton 
-                edge="end" 
-                onClick={handleCalendarOpen}
-                disabled={disabled}
-                aria-label="Select date"
-                sx={{ mr: -0.5 }}
-              >
+              <IconButton onClick={handleCalendarOpen} edge="end">
                 <CalendarIcon />
               </IconButton>
             </InputAdornment>
-          )
-        }}
-        inputProps={{
-          maxLength: 10,
-        }}
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            transition: theme.transitions.create(['box-shadow']),
-            '&:hover': {
-              borderColor: theme.palette.primary.main,
-            },
-            '&.Mui-focused': {
-              boxShadow: `0 0 0 2px ${theme.palette.primary.main}25`,
-            },
-          }
+          ),
         }}
       />
       
       <Popover
+        id={id}
         open={open}
         anchorEl={anchorEl}
         onClose={handleCalendarClose}
@@ -347,108 +322,29 @@ const DatePicker: React.FC<DatePickerProps> = ({
           vertical: 'top',
           horizontal: 'left',
         }}
-        sx={{
-          '& .MuiPaper-root': {
-            borderRadius: theme.shape.borderRadius,
-            boxShadow: theme.shadows[8],
-          }
-        }}
       >
-        <Paper sx={{ p: 2, width: 300 }}>
-          {/* Calendar header with month/year navigation */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex' }}>
-              <IconButton onClick={handlePrevYear} size="small" sx={{ mr: 0.5 }} title="Previous Year">
-                <ArrowBackIcon fontSize="small" />
-                <ArrowBackIcon fontSize="small" sx={{ ml: -1 }} />
-              </IconButton>
-              <IconButton onClick={handlePrevMonth} size="small" title="Previous Month">
-                <ArrowBackIcon fontSize="small" />
-              </IconButton>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Typography variant="subtitle1" sx={{ mr: 1 }}>
-                {format(currentMonth, 'MMMM')}
-              </Typography>
-              <Select
-                value={getYear(currentMonth)}
-                onChange={handleYearChange as any}
-                size="small"
-                sx={{ 
-                  minWidth: 80,
-                  '& .MuiSelect-select': {
-                    py: 0.5,
-                    px: 1,
-                  }
-                }}
-              >
-                {yearRange.map(year => (
-                  <MenuItem key={year} value={year}>{year}</MenuItem>
-                ))}
-              </Select>
-            </Box>
-            
-            <Box sx={{ display: 'flex' }}>
-              <IconButton onClick={handleNextMonth} size="small" title="Next Month">
-                <ArrowForwardIcon fontSize="small" />
-              </IconButton>
-              <IconButton onClick={handleNextYear} size="small" sx={{ ml: 0.5 }} title="Next Year">
-                <ArrowForwardIcon fontSize="small" />
-                <ArrowForwardIcon fontSize="small" sx={{ ml: -1 }} />
-              </IconButton>
-            </Box>
-          </Box>
+        <CalendarContainer>
+          <CalendarHeader>
+            <IconButton onClick={handlePrevMonth} size="small">
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h6">
+              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            </Typography>
+            <IconButton onClick={handleNextMonth} size="small">
+              <ArrowForwardIcon />
+            </IconButton>
+          </CalendarHeader>
           
-          {/* Weekday headers */}
-          <Grid container spacing={1} justifyContent="center" sx={{ mb: 1 }}>
-            {weekDays.map(day => (
-              <Grid item key={day} xs={1} sx={{ textAlign: 'center' }}>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontWeight: 'medium',
-                    color: theme.palette.text.secondary,
-                    display: 'block',
-                  }}
-                >
-                  {day}
-                </Typography>
-              </Grid>
+          <DaysGrid>
+            {weekdays.map(day => (
+              <WeekdayHeader key={day}>{day}</WeekdayHeader>
             ))}
-          </Grid>
-          
-          {/* Calendar grid */}
-          <Box sx={{ mb: 1 }}>
-            {renderCalendar()}
-          </Box>
-          
-          {/* Today button */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            mt: 2,
-            borderTop: `1px solid ${theme.palette.divider}`,
-            pt: 1.5 
-          }}>
-            <Button 
-              size="small" 
-              onClick={() => handleDateSelect(new Date())}
-              variant="text"
-              color="primary"
-              disabled={isDateDisabled(new Date())}
-              sx={{
-                borderRadius: theme.shape.borderRadius,
-                textTransform: 'none',
-                fontWeight: 'medium',
-              }}
-            >
-              Today
-            </Button>
-          </Box>
-        </Paper>
+            {generateCalendar()}
+          </DaysGrid>
+        </CalendarContainer>
       </Popover>
-    </Box>
+    </>
   );
 };
 
