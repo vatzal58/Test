@@ -6,19 +6,22 @@ import {
   Popover,
   Paper,
   Typography,
-  styled
+  styled,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import { 
   CalendarToday as CalendarIcon,
   ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon 
+  ArrowForward as ArrowForwardIcon,
+  KeyboardArrowDown as ArrowDownIcon
 } from '@mui/icons-material';
 
 // Define interface for the component props
 interface DatePickerProps {
-  value: number | undefined;
-  onChange: (value: number | undefined) => void;
-  disabledDates?: (date: Date) => boolean;
+  value: number;
+  onChange: (value: number) => void;
+  disabledDates?: (timestamp: number) => boolean;
   placeholder?: string;
 }
 
@@ -39,6 +42,12 @@ const CalendarHeader = styled('div')({
   justifyContent: 'space-between',
   alignItems: 'center',
   marginBottom: '16px',
+});
+
+const MonthYearSelector = styled('div')({
+  display: 'flex',
+  alignItems: 'center',
+  cursor: 'pointer',
 });
 
 const DaysGrid = styled('div')({
@@ -85,19 +94,20 @@ const DatePicker: React.FC<DatePickerProps> = ({
   // Internal state
   const [inputValue, setInputValue] = useState<string>('');
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [yearMenuAnchorEl, setYearMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [monthMenuAnchorEl, setMonthMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(
     value ? new Date(value) : new Date()
   );
   
+  // Default value to today's date if undefined
+  const safeValue = value || Date.now();
+  
   // Effect to update input value when the external value changes
   useEffect(() => {
-    if (value !== undefined) {
-      const date = new Date(value);
-      setInputValue(formatDate(date));
-    } else {
-      setInputValue('');
-    }
-  }, [value]);
+    const date = new Date(safeValue);
+    setInputValue(formatDate(date));
+  }, [safeValue]);
 
   // Helper functions
   const formatDate = (date: Date): string => {
@@ -107,10 +117,10 @@ const DatePicker: React.FC<DatePickerProps> = ({
     return `${month}/${day}/${year}`;
   };
 
-  const parseDate = (dateString: string): number | undefined => {
+  const parseDate = (dateString: string): number => {
     // Check if the format is valid MM/DD/YYYY
     const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-    if (!regex.test(dateString)) return undefined;
+    if (!regex.test(dateString)) return safeValue;
 
     const [month, day, year] = dateString.split('/').map(Number);
     const date = new Date(year, month - 1, day);
@@ -121,7 +131,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
       date.getMonth() !== month - 1 ||
       date.getDate() !== day
     ) {
-      return undefined;
+      return safeValue;
     }
     
     return date.getTime();
@@ -136,16 +146,15 @@ const DatePicker: React.FC<DatePickerProps> = ({
       const timestamp = parseDate(newInputValue);
       onChange(timestamp);
     } else if (newInputValue === '') {
-      onChange(undefined);
+      // If field is cleared, set to today's date instead of undefined
+      onChange(Date.now());
     }
   };
 
   const handleCalendarOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
-    // If there's a value, set the calendar to that month
-    if (value) {
-      setCurrentMonth(new Date(value));
-    }
+    // Set the calendar to the current value's month
+    setCurrentMonth(new Date(safeValue));
   };
 
   const handleCalendarClose = () => {
@@ -174,6 +183,42 @@ const DatePicker: React.FC<DatePickerProps> = ({
       return newMonth;
     });
   };
+  
+  // Year selection
+  const handleYearMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setYearMenuAnchorEl(event.currentTarget);
+  };
+  
+  const handleYearMenuClose = () => {
+    setYearMenuAnchorEl(null);
+  };
+  
+  const handleYearSelect = (year: number) => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setFullYear(year);
+      return newDate;
+    });
+    handleYearMenuClose();
+  };
+  
+  // Month selection
+  const handleMonthMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMonthMenuAnchorEl(event.currentTarget);
+  };
+  
+  const handleMonthMenuClose = () => {
+    setMonthMenuAnchorEl(null);
+  };
+  
+  const handleMonthSelect = (monthIndex: number) => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(monthIndex);
+      return newDate;
+    });
+    handleMonthMenuClose();
+  };
 
   // Calendar generation
   const generateCalendar = () => {
@@ -192,11 +237,11 @@ const DatePicker: React.FC<DatePickerProps> = ({
     const daysFromPrevMonth = firstDayOfWeek;
     const prevMonthDays = new Date(year, month, 0).getDate();
     
-    // Get the selected date (if any)
-    const selectedDate = value ? new Date(value) : null;
-    const selectedDay = selectedDate?.getDate();
-    const selectedMonth = selectedDate?.getMonth();
-    const selectedYear = selectedDate?.getFullYear();
+    // Get the selected date
+    const selectedDate = new Date(safeValue);
+    const selectedDay = selectedDate.getDate();
+    const selectedMonth = selectedDate.getMonth();
+    const selectedYear = selectedDate.getFullYear();
     
     // Create calendar days
     const days = [];
@@ -207,8 +252,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
       const prevMonth = month === 0 ? 11 : month - 1;
       const prevYear = month === 0 ? year - 1 : year;
       const date = new Date(prevYear, prevMonth, day);
+      const timestamp = date.getTime();
       
-      const isDisabled = disabledDates ? disabledDates(date) : false;
+      const isDisabled = disabledDates ? disabledDates(timestamp) : false;
       
       days.push(
         <DayCell 
@@ -229,11 +275,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
     // Days from current month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
+      const timestamp = date.getTime();
       const isSelected = 
         day === selectedDay && 
         month === selectedMonth && 
         year === selectedYear;
-      const isDisabled = disabledDates ? disabledDates(date) : false;
+      const isDisabled = disabledDates ? disabledDates(timestamp) : false;
       
       days.push(
         <DayCell 
@@ -260,8 +307,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
       const nextMonth = month === 11 ? 0 : month + 1;
       const nextYear = month === 11 ? year + 1 : year;
       const date = new Date(nextYear, nextMonth, day);
+      const timestamp = date.getTime();
       
-      const isDisabled = disabledDates ? disabledDates(date) : false;
+      const isDisabled = disabledDates ? disabledDates(timestamp) : false;
       
       days.push(
         <DayCell 
@@ -282,6 +330,16 @@ const DatePicker: React.FC<DatePickerProps> = ({
     return days;
   };
 
+  // Generate year list for the dropdown (current year ±20 years)
+  const generateYearOptions = () => {
+    const currentYear = currentMonth.getFullYear();
+    const years = [];
+    for (let i = currentYear - 20; i <= currentYear + 20; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
   const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -289,6 +347,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
   ];
 
   const open = Boolean(anchorEl);
+  const yearMenuOpen = Boolean(yearMenuAnchorEl);
+  const monthMenuOpen = Boolean(monthMenuAnchorEl);
   const id = open ? 'date-picker-popover' : undefined;
 
   return (
@@ -328,9 +388,27 @@ const DatePicker: React.FC<DatePickerProps> = ({
             <IconButton onClick={handlePrevMonth} size="small">
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h6">
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Typography>
+            
+            <MonthYearSelector>
+              <Typography
+                variant="h6"
+                onClick={handleMonthMenuOpen}
+                style={{ display: 'flex', alignItems: 'center', marginRight: '8px' }}
+              >
+                {monthNames[currentMonth.getMonth()]}
+                <ArrowDownIcon fontSize="small" />
+              </Typography>
+              
+              <Typography
+                variant="h6"
+                onClick={handleYearMenuOpen}
+                style={{ display: 'flex', alignItems: 'center' }}
+              >
+                {currentMonth.getFullYear()}
+                <ArrowDownIcon fontSize="small" />
+              </Typography>
+            </MonthYearSelector>
+            
             <IconButton onClick={handleNextMonth} size="small">
               <ArrowForwardIcon />
             </IconButton>
@@ -344,6 +422,52 @@ const DatePicker: React.FC<DatePickerProps> = ({
           </DaysGrid>
         </CalendarContainer>
       </Popover>
+      
+      {/* Year Selection Menu */}
+      <Menu
+        anchorEl={yearMenuAnchorEl}
+        open={yearMenuOpen}
+        onClose={handleYearMenuClose}
+        PaperProps={{
+          style: {
+            maxHeight: 300,
+            width: '120px',
+          },
+        }}
+      >
+        {generateYearOptions().map((year) => (
+          <MenuItem 
+            key={year} 
+            onClick={() => handleYearSelect(year)}
+            selected={year === currentMonth.getFullYear()}
+          >
+            {year}
+          </MenuItem>
+        ))}
+      </Menu>
+      
+      {/* Month Selection Menu */}
+      <Menu
+        anchorEl={monthMenuAnchorEl}
+        open={monthMenuOpen}
+        onClose={handleMonthMenuClose}
+        PaperProps={{
+          style: {
+            maxHeight: 300,
+            width: '120px',
+          },
+        }}
+      >
+        {monthNames.map((month, index) => (
+          <MenuItem 
+            key={month} 
+            onClick={() => handleMonthSelect(index)}
+            selected={index === currentMonth.getMonth()}
+          >
+            {month}
+          </MenuItem>
+        ))}
+      </Menu>
     </>
   );
 };
