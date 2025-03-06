@@ -1,0 +1,150 @@
+import React, { useState, useEffect } from 'react';
+import { TextField, IconButton, Popover, Box } from '@mui/material';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import CalendarIcon from '@mui/icons-material/CalendarMonth';
+import { format, parse, isValid } from 'date-fns';
+
+interface DatePickerProps {
+  value: Date | null;
+  onChange: (date: Date | null) => void;
+  label?: string;
+  disabled?: boolean;
+  required?: boolean;
+  error?: boolean;
+  helperText?: string;
+  fullWidth?: boolean;
+}
+
+const DatePicker: React.FC<DatePickerProps> = ({
+  value,
+  onChange,
+  label = 'Date',
+  disabled = false,
+  required = false,
+  error = false,
+  helperText = '',
+  fullWidth = false,
+}) => {
+  // State for the text input
+  const [inputValue, setInputValue] = useState<string>('');
+  
+  // State for calendar popover
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const open = Boolean(anchorEl);
+  
+  // State for tracking input errors
+  const [inputError, setInputError] = useState<string>('');
+  
+  // Update input value when the date value changes externally
+  useEffect(() => {
+    if (value) {
+      setInputValue(format(value, 'MM/dd/yyyy'));
+    } else {
+      setInputValue('');
+    }
+  }, [value]);
+  
+  // Handle click to open calendar
+  const handleCalendarOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  
+  // Handle calendar close
+  const handleCalendarClose = () => {
+    setAnchorEl(null);
+  };
+  
+  // Handle date selection from calendar
+  const handleCalendarChange = (date: Date | null) => {
+    onChange(date);
+    handleCalendarClose();
+  };
+  
+  // Handle text input change
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setInputValue(newValue);
+    
+    // Clear previous error
+    setInputError('');
+    
+    // If empty and not required, clear the date
+    if (!newValue.trim()) {
+      onChange(null);
+      return;
+    }
+    
+    // Try to parse the input as a date
+    if (newValue.length === 10) { // Full date entered (MM/DD/YYYY)
+      const parsedDate = parse(newValue, 'MM/dd/yyyy', new Date());
+      
+      if (isValid(parsedDate)) {
+        onChange(parsedDate);
+      } else {
+        setInputError('Invalid date format. Use MM/DD/YYYY');
+      }
+    }
+  };
+  
+  // Handle blur event to validate incomplete dates
+  const handleBlur = () => {
+    if (inputValue && inputValue.length > 0 && inputValue.length < 10) {
+      setInputError('Please enter a complete date in MM/DD/YYYY format');
+    } else if (inputValue.length === 10) {
+      const parsedDate = parse(inputValue, 'MM/dd/yyyy', new Date());
+      if (!isValid(parsedDate)) {
+        setInputError('Invalid date format. Use MM/DD/YYYY');
+      }
+    }
+  };
+  
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <TextField
+        label={label}
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleBlur}
+        disabled={disabled}
+        required={required}
+        error={error || !!inputError}
+        helperText={inputError || helperText}
+        fullWidth={fullWidth}
+        placeholder="MM/DD/YYYY"
+        inputProps={{
+          maxLength: 10,
+        }}
+        sx={{ mr: 1 }}
+      />
+      
+      <IconButton 
+        onClick={handleCalendarOpen} 
+        disabled={disabled}
+        aria-label="Select date"
+      >
+        <CalendarIcon />
+      </IconButton>
+      
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleCalendarClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DateCalendar
+            value={value}
+            onChange={handleCalendarChange}
+          />
+        </LocalizationProvider>
+      </Popover>
+    </Box>
+  );
+};
+
+export default DatePicker;
