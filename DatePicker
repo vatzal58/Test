@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, IconButton, Popover, Box } from '@mui/material';
-import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { 
+  TextField, 
+  IconButton, 
+  Popover, 
+  Box,
+  Grid,
+  Button,
+  Typography,
+  Paper
+} from '@mui/material';
 import CalendarIcon from '@mui/icons-material/CalendarMonth';
-import { format, parse, isValid } from 'date-fns';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { format, parse, isValid, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 
 interface DatePickerProps {
   value: Date | null;
@@ -37,10 +45,14 @@ const DatePicker: React.FC<DatePickerProps> = ({
   // State for tracking input errors
   const [inputError, setInputError] = useState<string>('');
   
+  // State for current month in calendar
+  const [currentMonth, setCurrentMonth] = useState<Date>(value ? new Date(value) : new Date());
+  
   // Update input value when the date value changes externally
   useEffect(() => {
     if (value) {
       setInputValue(format(value, 'MM/dd/yyyy'));
+      setCurrentMonth(value);
     } else {
       setInputValue('');
     }
@@ -49,6 +61,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
   // Handle click to open calendar
   const handleCalendarOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
+    // Reset current month to the selected date or today
+    setCurrentMonth(value || new Date());
   };
   
   // Handle calendar close
@@ -57,7 +71,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   };
   
   // Handle date selection from calendar
-  const handleCalendarChange = (date: Date | null) => {
+  const handleDateSelect = (date: Date) => {
     onChange(date);
     handleCalendarClose();
   };
@@ -100,6 +114,86 @@ const DatePicker: React.FC<DatePickerProps> = ({
     }
   };
   
+  // Navigation for calendar
+  const handlePrevMonth = () => {
+    setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
+  };
+  
+  const handleNextMonth = () => {
+    setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
+  };
+
+  // Generate calendar days
+  const getDaysInMonth = () => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start, end });
+  };
+
+  // Get day of week (0-6, where 0 is Sunday)
+  const getFirstDayOffset = () => {
+    return startOfMonth(currentMonth).getDay();
+  };
+
+  // Generate weekday headers
+  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  // Create calendar UI
+  const renderCalendar = () => {
+    const days = getDaysInMonth();
+    const firstDayOffset = getFirstDayOffset();
+    const totalSlots = days.length + firstDayOffset;
+    const rows = Math.ceil(totalSlots / 7);
+
+    let calendarDays = [];
+    let dayIndex = 0;
+
+    for (let row = 0; row < rows; row++) {
+      let weekRow = [];
+      for (let col = 0; col < 7; col++) {
+        const dayPosition = row * 7 + col;
+        if (dayPosition < firstDayOffset || dayIndex >= days.length) {
+          // Empty cell
+          weekRow.push(
+            <Grid item key={`empty-${row}-${col}`} xs={1} sx={{ textAlign: 'center' }}>
+              <Button disabled sx={{ minWidth: 36, height: 36 }} />
+            </Grid>
+          );
+        } else {
+          const day = days[dayIndex];
+          const isSelected = value ? isSameDay(day, value) : false;
+          const isTodayDate = isToday(day);
+          
+          weekRow.push(
+            <Grid item key={`day-${dayIndex}`} xs={1} sx={{ textAlign: 'center' }}>
+              <Button
+                onClick={() => handleDateSelect(day)}
+                variant={isSelected ? "contained" : "text"}
+                color={isTodayDate && !isSelected ? "primary" : "inherit"}
+                sx={{
+                  minWidth: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  fontWeight: isTodayDate ? 'bold' : 'normal',
+                }}
+              >
+                {format(day, 'd')}
+              </Button>
+            </Grid>
+          );
+          dayIndex++;
+        }
+      }
+      calendarDays.push(
+        <Grid container key={`week-${row}`} spacing={1} justifyContent="center">
+          {weekRow}
+        </Grid>
+      );
+    }
+
+    return calendarDays;
+  };
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <TextField
@@ -136,12 +230,49 @@ const DatePicker: React.FC<DatePickerProps> = ({
           horizontal: 'left',
         }}
       >
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DateCalendar
-            value={value}
-            onChange={handleCalendarChange}
-          />
-        </LocalizationProvider>
+        <Paper sx={{ p: 2, width: 280 }}>
+          {/* Calendar header with month navigation */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <IconButton onClick={handlePrevMonth} size="small">
+              <ArrowBackIcon fontSize="small" />
+            </IconButton>
+            
+            <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+              {format(currentMonth, 'MMMM yyyy')}
+            </Typography>
+            
+            <IconButton onClick={handleNextMonth} size="small">
+              <ArrowForwardIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          
+          {/* Weekday headers */}
+          <Grid container spacing={1} justifyContent="center" sx={{ mb: 1 }}>
+            {weekDays.map(day => (
+              <Grid item key={day} xs={1} sx={{ textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
+                  {day}
+                </Typography>
+              </Grid>
+            ))}
+          </Grid>
+          
+          {/* Calendar grid */}
+          <Box sx={{ mb: 1 }}>
+            {renderCalendar()}
+          </Box>
+          
+          {/* Today button */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <Button 
+              size="small" 
+              onClick={() => handleDateSelect(new Date())}
+              variant="text"
+            >
+              Today
+            </Button>
+          </Box>
+        </Paper>
       </Popover>
     </Box>
   );
