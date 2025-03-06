@@ -7,12 +7,31 @@ import {
   Grid,
   Button,
   Typography,
-  Paper
+  Paper,
+  Select,
+  MenuItem,
+  InputAdornment,
+  useTheme
 } from '@mui/material';
 import CalendarIcon from '@mui/icons-material/CalendarMonth';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { format, parse, isValid, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
+import { 
+  format, 
+  parse, 
+  isValid, 
+  addMonths, 
+  subMonths, 
+  addYears,
+  subYears,
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  isSameDay, 
+  isToday,
+  getYear,
+  setYear
+} from 'date-fns';
 
 interface DatePickerProps {
   value: Date | null;
@@ -23,6 +42,20 @@ interface DatePickerProps {
   error?: boolean;
   helperText?: string;
   fullWidth?: boolean;
+  /**
+   * Function to determine if a date should be disabled
+   * @param date The date to check
+   * @returns boolean True if the date should be disabled
+   */
+  shouldDisableDate?: (date: Date) => boolean;
+  /**
+   * Min selectable date
+   */
+  minDate?: Date;
+  /**
+   * Max selectable date
+   */
+  maxDate?: Date;
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({
@@ -34,7 +67,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
   error = false,
   helperText = '',
   fullWidth = false,
+  shouldDisableDate,
+  minDate,
+  maxDate,
 }) => {
+  const theme = useTheme();
+  
   // State for the text input
   const [inputValue, setInputValue] = useState<string>('');
   
@@ -48,6 +86,13 @@ const DatePicker: React.FC<DatePickerProps> = ({
   // State for current month in calendar
   const [currentMonth, setCurrentMonth] = useState<Date>(value ? new Date(value) : new Date());
   
+  // Available years for selection (20 years before and after current year)
+  const currentYear = getYear(new Date());
+  const yearRange = Array.from(
+    { length: 41 }, 
+    (_, i) => currentYear - 20 + i
+  );
+  
   // Update input value when the date value changes externally
   useEffect(() => {
     if (value) {
@@ -59,8 +104,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
   }, [value]);
   
   // Handle click to open calendar
-  const handleCalendarOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleCalendarOpen = (event: React.MouseEvent<HTMLElement>) => {
+    // Use currentTarget instead of target to get the button element
+    setAnchorEl(event.currentTarget as HTMLButtonElement);
     // Reset current month to the selected date or today
     setCurrentMonth(value || new Date());
   };
@@ -70,10 +116,20 @@ const DatePicker: React.FC<DatePickerProps> = ({
     setAnchorEl(null);
   };
   
+  // Check if date should be disabled
+  const isDateDisabled = (date: Date): boolean => {
+    if (minDate && date < minDate) return true;
+    if (maxDate && date > maxDate) return true;
+    if (shouldDisableDate && shouldDisableDate(date)) return true;
+    return false;
+  };
+  
   // Handle date selection from calendar
   const handleDateSelect = (date: Date) => {
-    onChange(date);
-    handleCalendarClose();
+    if (!isDateDisabled(date)) {
+      onChange(date);
+      handleCalendarClose();
+    }
   };
   
   // Handle text input change
@@ -95,7 +151,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
       const parsedDate = parse(newValue, 'MM/dd/yyyy', new Date());
       
       if (isValid(parsedDate)) {
-        onChange(parsedDate);
+        // Check if date is in allowed range
+        if (isDateDisabled(parsedDate)) {
+          setInputError('This date is not available for selection');
+        } else {
+          onChange(parsedDate);
+        }
       } else {
         setInputError('Invalid date format. Use MM/DD/YYYY');
       }
@@ -110,6 +171,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
       const parsedDate = parse(inputValue, 'MM/dd/yyyy', new Date());
       if (!isValid(parsedDate)) {
         setInputError('Invalid date format. Use MM/DD/YYYY');
+      } else if (isDateDisabled(parsedDate)) {
+        setInputError('This date is not available for selection');
       }
     }
   };
@@ -121,6 +184,20 @@ const DatePicker: React.FC<DatePickerProps> = ({
   
   const handleNextMonth = () => {
     setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
+  };
+  
+  const handlePrevYear = () => {
+    setCurrentMonth(prevMonth => subYears(prevMonth, 1));
+  };
+  
+  const handleNextYear = () => {
+    setCurrentMonth(prevMonth => addYears(prevMonth, 1));
+  };
+  
+  // Handle year selection
+  const handleYearChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    const year = event.target.value as number;
+    setCurrentMonth(prevMonth => setYear(prevMonth, year));
   };
 
   // Generate calendar days
@@ -156,13 +233,14 @@ const DatePicker: React.FC<DatePickerProps> = ({
           // Empty cell
           weekRow.push(
             <Grid item key={`empty-${row}-${col}`} xs={1} sx={{ textAlign: 'center' }}>
-              <Button disabled sx={{ minWidth: 36, height: 36 }} />
+              <Box sx={{ minWidth: 36, height: 36 }} />
             </Grid>
           );
         } else {
           const day = days[dayIndex];
           const isSelected = value ? isSameDay(day, value) : false;
           const isTodayDate = isToday(day);
+          const isDisabled = isDateDisabled(day);
           
           weekRow.push(
             <Grid item key={`day-${dayIndex}`} xs={1} sx={{ textAlign: 'center' }}>
@@ -170,11 +248,30 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 onClick={() => handleDateSelect(day)}
                 variant={isSelected ? "contained" : "text"}
                 color={isTodayDate && !isSelected ? "primary" : "inherit"}
+                disabled={isDisabled}
                 sx={{
                   minWidth: 36,
                   height: 36,
+                  padding: 0,
                   borderRadius: '50%',
                   fontWeight: isTodayDate ? 'bold' : 'normal',
+                  color: isDisabled 
+                    ? theme.palette.text.disabled 
+                    : isSelected 
+                      ? theme.palette.primary.contrastText 
+                      : theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: isDisabled 
+                      ? 'transparent' 
+                      : isSelected 
+                        ? theme.palette.primary.dark 
+                        : theme.palette.action.hover,
+                  },
+                  '&.Mui-disabled': {
+                    color: theme.palette.text.disabled,
+                    textDecoration: 'line-through',
+                    opacity: 0.6,
+                  }
                 }}
               >
                 {format(day, 'd')}
@@ -195,7 +292,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ width: fullWidth ? '100%' : 'auto' }}>
       <TextField
         label={label}
         value={inputValue}
@@ -207,19 +304,36 @@ const DatePicker: React.FC<DatePickerProps> = ({
         helperText={inputError || helperText}
         fullWidth={fullWidth}
         placeholder="MM/DD/YYYY"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton 
+                edge="end" 
+                onClick={handleCalendarOpen}
+                disabled={disabled}
+                aria-label="Select date"
+                sx={{ mr: -0.5 }}
+              >
+                <CalendarIcon />
+              </IconButton>
+            </InputAdornment>
+          )
+        }}
         inputProps={{
           maxLength: 10,
         }}
-        sx={{ mr: 1 }}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            transition: theme.transitions.create(['box-shadow']),
+            '&:hover': {
+              borderColor: theme.palette.primary.main,
+            },
+            '&.Mui-focused': {
+              boxShadow: `0 0 0 2px ${theme.palette.primary.main}25`,
+            },
+          }
+        }}
       />
-      
-      <IconButton 
-        onClick={handleCalendarOpen} 
-        disabled={disabled}
-        aria-label="Select date"
-      >
-        <CalendarIcon />
-      </IconButton>
       
       <Popover
         open={open}
@@ -229,28 +343,75 @@ const DatePicker: React.FC<DatePickerProps> = ({
           vertical: 'bottom',
           horizontal: 'left',
         }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        sx={{
+          '& .MuiPaper-root': {
+            borderRadius: theme.shape.borderRadius,
+            boxShadow: theme.shadows[8],
+          }
+        }}
       >
-        <Paper sx={{ p: 2, width: 280 }}>
-          {/* Calendar header with month navigation */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <IconButton onClick={handlePrevMonth} size="small">
-              <ArrowBackIcon fontSize="small" />
-            </IconButton>
+        <Paper sx={{ p: 2, width: 300 }}>
+          {/* Calendar header with month/year navigation */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex' }}>
+              <IconButton onClick={handlePrevYear} size="small" sx={{ mr: 0.5 }} title="Previous Year">
+                <ArrowBackIcon fontSize="small" />
+                <ArrowBackIcon fontSize="small" sx={{ ml: -1 }} />
+              </IconButton>
+              <IconButton onClick={handlePrevMonth} size="small" title="Previous Month">
+                <ArrowBackIcon fontSize="small" />
+              </IconButton>
+            </Box>
             
-            <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-              {format(currentMonth, 'MMMM yyyy')}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                {format(currentMonth, 'MMMM')}
+              </Typography>
+              <Select
+                value={getYear(currentMonth)}
+                onChange={handleYearChange as any}
+                size="small"
+                sx={{ 
+                  minWidth: 80,
+                  '& .MuiSelect-select': {
+                    py: 0.5,
+                    px: 1,
+                  }
+                }}
+              >
+                {yearRange.map(year => (
+                  <MenuItem key={year} value={year}>{year}</MenuItem>
+                ))}
+              </Select>
+            </Box>
             
-            <IconButton onClick={handleNextMonth} size="small">
-              <ArrowForwardIcon fontSize="small" />
-            </IconButton>
+            <Box sx={{ display: 'flex' }}>
+              <IconButton onClick={handleNextMonth} size="small" title="Next Month">
+                <ArrowForwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton onClick={handleNextYear} size="small" sx={{ ml: 0.5 }} title="Next Year">
+                <ArrowForwardIcon fontSize="small" />
+                <ArrowForwardIcon fontSize="small" sx={{ ml: -1 }} />
+              </IconButton>
+            </Box>
           </Box>
           
           {/* Weekday headers */}
           <Grid container spacing={1} justifyContent="center" sx={{ mb: 1 }}>
             {weekDays.map(day => (
               <Grid item key={day} xs={1} sx={{ textAlign: 'center' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'medium' }}>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontWeight: 'medium',
+                    color: theme.palette.text.secondary,
+                    display: 'block',
+                  }}
+                >
                   {day}
                 </Typography>
               </Grid>
@@ -263,11 +424,24 @@ const DatePicker: React.FC<DatePickerProps> = ({
           </Box>
           
           {/* Today button */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mt: 2,
+            borderTop: `1px solid ${theme.palette.divider}`,
+            pt: 1.5 
+          }}>
             <Button 
               size="small" 
               onClick={() => handleDateSelect(new Date())}
               variant="text"
+              color="primary"
+              disabled={isDateDisabled(new Date())}
+              sx={{
+                borderRadius: theme.shape.borderRadius,
+                textTransform: 'none',
+                fontWeight: 'medium',
+              }}
             >
               Today
             </Button>
