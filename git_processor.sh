@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Check if input file is provided
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <input_file.txt>"
+# Check if both input file and commit message are provided
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <input_file.txt> <commit_message>"
     exit 1
 fi
 
 INPUT_FILE=$1
+COMMIT_MESSAGE=$2
 
 # Check if input file exists
 if [ ! -f "$INPUT_FILE" ]; then
@@ -25,7 +26,6 @@ process_repo() {
     local target_branch="$3"
     local release_branch="$4"
     local image_tag_prefix="$5"
-    local commit_message="$6"
     local made_changes=0
 
     echo "Processing repository: $repo_path"
@@ -83,13 +83,13 @@ process_repo() {
             failed_repos+=("$repo_path")
             return 1
         }
-        git commit -m "$commit_message" || {
+        git commit -m "$COMMIT_MESSAGE" || {
             echo "Failed to commit changes"
             failed_repos+=("$repo_path")
             return 1
         }
     else
-        git commit --allow-empty -m "$commit_message" || {
+        git commit --allow-empty -m "$COMMIT_MESSAGE" || {
             echo "Failed to create empty commit"
             failed_repos+=("$repo_path")
             return 1
@@ -121,12 +121,12 @@ process_repo() {
 }
 
 # Read the input file line by line
-while IFS=' ' read -r repo_path source_branch target_branch release_branch image_tag_prefix commit_message; do
+while IFS=' ' read -r repo_path source_branch target_branch release_branch image_tag_prefix; do
     # Skip empty lines or lines starting with #
     [[ -z "$repo_path" || "$repo_path" =~ ^# ]] && continue
 
     # Process the repository
-    process_repo "$repo_path" "$source_branch" "$target_branch" "$release_branch" "$image_tag_prefix" "$commit_message"
+    process_repo "$repo_path" "$source_branch" "$target_branch" "$release_branch" "$image_tag_prefix"
 done < "$INPUT_FILE"
 
 # Print summary
@@ -145,4 +145,4 @@ if [ ${#failed_repos[@]} -eq 0 ]; then
     echo -e "\nAll repositories processed successfully!"
 else
     echo -e "\nSome repositories failed to process. Please check the logs above for details."
-fi  
+fi
