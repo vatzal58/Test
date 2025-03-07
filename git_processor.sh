@@ -146,3 +146,5 @@ if [ ${#failed_repos[@]} -eq 0 ]; then
 else
     echo -e "\nSome repositories failed to process. Please check the logs above for details."
 fi
+
+find "$(pwd)" -maxdepth 1 -type d ! -path "$(pwd)" -exec realpath {} \; | awk '{print $1 " release/2025.02.14 feature/2025.05.16 release/2025.05.14 2025.05.16"}' > repos.txt && echo "# Format: repo_path source_branch target_branch release_branch openshiftImageTagPrefix" | cat - repos.txt > temp && mv temp repos.txt
