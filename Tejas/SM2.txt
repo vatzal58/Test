@@ -1,0 +1,42 @@
+# PowerShell script for uninstalling CA SiteMinder Web Agent considering both 32-bit and 64-bit scenarios
+
+$webAgentHome32 = "C:\Program Files (x86)\webagent\win32"
+$webAgentHome64 = "C:\Program Files\CA\webagent\win64"
+$webAgentHomeStandard = "C:\Program Files\CA\webagent"
+
+# Function to uninstall CA SiteMinder Web Agent
+function Uninstall-SiteMinderWebAgent {
+    # Stop the web server
+    Stop-Service -Name "W3SVC" -Force
+
+    # Check for 32-bit installation
+    if (Test-Path $webAgentHome32) {
+        Write-Output "Uninstalling 32-bit CA SiteMinder Web Agent..."
+        & "$webAgentHome32\ca-wa-uninstall.cmd" -i console
+    }
+
+    # Check for 64-bit installation
+    if (Test-Path $webAgentHome64) {
+        Write-Output "Uninstalling 64-bit CA SiteMinder Web Agent..."
+        & "$webAgentHome64\ca-wa-uninstall.cmd" -i console
+    }
+
+    # Check for standard installation
+    if (Test-Path $webAgentHomeStandard) {
+        Write-Output "Uninstalling standard CA SiteMinder Web Agent..."
+        & "$webAgentHomeStandard\ca-wa-uninstall.cmd" -i console
+    }
+
+    # Remove ZeroG registry file
+    $zeroGPath = "C:\Program Files\ZeroG Registry\com.zerog.registry.xml"
+    if (Test-Path $zeroGPath) {
+        Remove-Item -Path $zeroGPath -Force
+        Write-Output "ZeroG registry file removed."
+    }
+
+    # Restart the web server
+    Start-Service -Name "W3SVC"
+}
+
+# Execute the uninstallation function
+Uninstall-SiteMinderWebAgent

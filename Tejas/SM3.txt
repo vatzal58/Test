@@ -1,0 +1,78 @@
+# Define log file path
+$logFile = "C:\Logs\SiteMinderManualUninstall_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+
+# Logging function
+function Write-Log {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "$timestamp [$Level] - $Message"
+    Add-Content -Path $logFile -Value $logEntry
+    Write-Host $logEntry
+}
+
+# Create log directory if it doesn't exist
+$logDir = Split-Path $logFile -Parent
+if (!(Test-Path $logDir)) {
+    New-Item -ItemType Directory -Path $logDir | Out-Null
+    Write-Log "Created log directory: $logDir"
+}
+
+# Function to manually uninstall CA SiteMinder Web Agent
+function Uninstall-SiteMinderWebAgentManually {
+    try {
+        # Step 1: Stop IIS web server
+        Write-Log "Stopping IIS web server"
+        iisreset /stop
+        Write-Log "IIS web server stopped"
+
+        # Step 2: Remove Web Agent folders
+        $folders = @(
+            "C:\Program Files\CA\webagent",
+            "C:\Program Files\CA\webagent\win64",
+            "C:\Program Files (x86)\webagent\win32"
+        )
+        foreach ($folder in $folders) {
+            if (Test-Path $folder) {
+                Write-Log "Removing folder: $folder"
+                Remove-Item -Path $folder -Recurse -Force
+                Write-Log "Folder removed: $folder"
+            }
+        }
+
+        # Step 3: Clean up registry
+        $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+        $regKey = Get-ChildItem $regPath | Where-Object { $_.GetValue("DisplayName") -like "*Siteminder Web Agent*" }
+        if ($regKey) {
+            Write-Log "Removing registry key: $($regKey.Name)"
+            Remove-Item -Path $regKey.PSPath -Recurse -Force
+            Write-Log "Registry key removed"
+        }
+
+        # Step 4: Remove ZeroG registry file
+        $zeroGPath = "C:\Program Files\ZeroG Registry\com.zerog.registry.xml"
+        if (Test-Path $zeroGPath) {
+            Write-Log "Removing ZeroG registry file"
+            Remove-Item -Path $zeroGPath -Force
+            Write-Log "ZeroG registry file removed"
+        }
+
+        # Step 5: Restart IIS web server
+        Write-Log "Restarting IIS web server"
+        iisreset /start
+        Write-Log "IIS web server restarted"
+
+        Write-Log "Manual uninstallation process completed successfully"
+    }
+    catch {
+        Write-Log "An error occurred during manual uninstallation: $_" "ERROR"
+    }
+}
+
+# Execute the manual uninstallation function
+Uninstall-SiteMinderWebAgentManually
+
+Write-Log "Script execution completed. Please restart the machine to ensure all changes take effect."
