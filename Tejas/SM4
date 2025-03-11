@@ -1,0 +1,26 @@
+$appName = "YourAppName"  # Replace with the name of the application you're looking for
+
+# Check in 32-bit and 64-bit registry locations
+$registryPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+)
+
+$appFound = $false
+
+foreach ($path in $registryPaths) {
+    $installedApps = Get-ChildItem -Path $path
+    foreach ($app in $installedApps) {
+        $appDisplayName = (Get-ItemProperty -Path $app.PSPath).DisplayName
+        if ($appDisplayName -like "*$appName*") {
+            $appFound = $true
+            Write-Host "$appName is installed."
+            break
+        }
+    }
+    if ($appFound) { break }
+}
+
+if (-not $appFound) {
+    Write-Host "$appName is not installed."
+}
